@@ -7,6 +7,8 @@ import { GemstoneWaySelector } from '../components/GemstoneWaySelector';
 import { GemstonePurposeGrid } from '../components/GemstonePurposeGrid';
 import { GemstoneNinePlanets } from '../components/GemstoneNinePlanets';
 import { FeaturedGemstones } from '../components/FeaturedGemstones';
+import { PersonalizedRecommendationStrip } from '../components/PersonalizedRecommendationStrip';
+import { ExploreGemstonesByCategory } from '../components/ExploreGemstonesByCategory';
 import { GemstoneCategoryNav } from '../components/GemstoneCategoryNav';
 import { GemstoneZodiacStrip } from '../components/GemstoneZodiacStrip';
 import { GemstoneCard } from '../components/GemstoneCard';
@@ -216,6 +218,17 @@ export const GemstonesPage: React.FC = () => {
       <FeaturedGemstones
         onSelectGemstone={(slug) => navigate(`/gemstones/${slug}`)}
         onViewAllGemstones={() => handleCategorySelect('all')}
+      />
+
+      {/* 1f. Not Sure Which Gemstone Is Right for You? — Personalized Recommendation Strip */}
+      <PersonalizedRecommendationStrip
+        onFindMyGemstone={() => setIsFindMyGemstoneOpen(true)}
+      />
+
+      {/* 1g. Explore Gemstones by Category */}
+      <ExploreGemstonesByCategory
+        onSelectCategory={(slug) => handleCategorySelect(slug)}
+        onViewAllCategories={() => handleCategorySelect('all')}
       />
 
       {/* 2. Horizontal Sticky Category Navigation */}
