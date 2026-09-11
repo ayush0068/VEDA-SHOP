@@ -1,0 +1,19 @@
+<svg width="800" height="800" viewBox="0 0 800 800" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="800" height="800" fill="#F4C95A"/>
+  <rect x="65" y="60" width="670" height="680" rx="34" fill="#F6F1E5" opacity="0.92"/>
+  <circle cx="400" cy="280" r="160" fill="#E7A656" opacity="0.25"/>
+  <g>
+    <path d="M400 140C468 190 515 244 515 319C515 378 472 426 400 490C328 426 285 378 285 319C285 244 332 190 400 140Z" fill="#A44C2A"/>
+    <path d="M400 184C450 222 480 268 480 316C480 356 451 394 400 438C349 394 320 356 320 316C320 268 350 222 400 184Z" fill="#B8662E"/>
+    <path d="M400 208C428 224 448 248 448 278C448 308 429 330 400 350C371 330 352 308 352 278C352 248 372 224 400 208Z" fill="#4D2012"/>
+    <path d="M400 220L440 273L400 355L360 273L400 220Z" fill="#E7B68B" opacity="0.72"/>
+    <path d="M368 298L400 318L432 298L400 410L368 298Z" fill="#D48B49" opacity="0.72"/>
+    <path d="M327 350L367 334L400 392L336 407L327 350Z" fill="#D58B49" opacity="0.8"/>
+    <path d="M473 350L433 334L400 392L464 407L473 350Z" fill="#D58B49" opacity="0.8"/>
+  </g>
+  <g>
+    <rect x="155" y="525" width="490" height="96" rx="20" fill="#FFFDF9"/>
+    <text x="180" y="570" font-size="36" font-family="Georgia, serif" font-weight="700" fill="#6C2E1A">Protection • Grace • Stability</text>
+    <text x="400" y="608" text-anchor="middle" font-size="22" font-family="Arial, sans-serif" fill="#5B4B2C">Blessed by Lord Vishnu</text>
+  </g>
+</svg>

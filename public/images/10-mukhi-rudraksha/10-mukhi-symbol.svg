@@ -1,0 +1,15 @@
+<svg width="800" height="800" viewBox="0 0 800 800" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="800" height="800" fill="#F8D15D"/>
+  <circle cx="400" cy="400" r="270" fill="#F2A94B" opacity="0.22"/>
+  <g>
+    <circle cx="400" cy="400" r="204" fill="#F3E5C2"/>
+    <path d="M400 210C473 248 516 305 516 371C516 451 463 519 400 567C337 519 284 451 284 371C284 305 327 248 400 210Z" fill="#B55C2E"/>
+    <path d="M400 254C447 286 476 332 476 382C476 431 442 474 400 510C358 474 324 431 324 382C324 332 353 286 400 254Z" fill="#C86F37"/>
+    <path d="M400 278C434 301 454 335 454 374C454 414 432 448 400 477C368 448 346 414 346 374C346 335 366 301 400 278Z" fill="#4F2412"/>
+    <path d="M400 285L444 337L400 470L356 337L400 285Z" fill="#F0C57A" opacity="0.75"/>
+    <path d="M356 356L400 497L444 356L400 389L356 356Z" fill="#D88C51" opacity="0.82"/>
+    <path d="M322 392L356 360L400 431L334 450L322 392Z" fill="#D07D43" opacity="0.8"/>
+    <path d="M478 392L444 360L400 431L466 450L478 392Z" fill="#D07D43" opacity="0.8"/>
+  </g>
+  <text x="400" y="655" text-anchor="middle" font-size="52" font-family="Georgia, serif" font-weight="700" fill="#6D2F1E">10</text>
+</svg>

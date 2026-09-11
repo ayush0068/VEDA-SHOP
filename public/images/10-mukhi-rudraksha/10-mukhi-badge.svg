@@ -1,0 +1,21 @@
+<svg width="800" height="800" viewBox="0 0 800 800" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="800" height="800" fill="#F0C13B"/>
+  <circle cx="400" cy="400" r="290" fill="#F7D874" opacity="0.48"/>
+  <circle cx="400" cy="410" r="210" fill="#E4A752" opacity="0.3"/>
+  <g>
+    <path d="M400 175C460 220 505 270 505 336C505 388 470 429 400 484C330 429 295 388 295 336C295 270 340 220 400 175Z" fill="#A2542A"/>
+    <path d="M400 210C447 244 478 285 478 332C478 370 449 405 400 448C351 405 322 370 322 332C322 285 353 244 400 210Z" fill="#BA6732"/>
+    <path d="M400 243C424 257 444 279 444 309C444 344 424 369 400 389C376 369 356 344 356 309C356 279 376 257 400 243Z" fill="#4B1F10"/>
+    <path d="M400 245L442 286L400 385L358 286L400 245Z" fill="#E7B57B" opacity="0.7"/>
+    <path d="M362 318L400 335L440 318L400 457L362 318Z" fill="#DA9D57" opacity="0.75"/>
+    <path d="M320 349L363 333L400 388L337 400L320 349Z" fill="#D58B49" opacity="0.8"/>
+    <path d="M480 349L437 333L400 388L463 400L480 349Z" fill="#D58B49" opacity="0.8"/>
+    <path d="M360 470L400 586L440 470L400 500L360 470Z" fill="#6E3320" opacity="0.9"/>
+  </g>
+  <g>
+    <circle cx="400" cy="520" r="138" fill="#F6F3EE" opacity="0.82"/>
+    <circle cx="400" cy="520" r="118" fill="#EFEFEF"/>
+    <text x="400" y="490" text-anchor="middle" font-size="42" font-family="Georgia, serif" font-weight="700" fill="#7A3D17">10 MUKHI</text>
+    <text x="400" y="548" text-anchor="middle" font-size="32" font-family="Georgia, serif" fill="#7A3D17">RUDRAKSHA</text>
+  </g>
+</svg>

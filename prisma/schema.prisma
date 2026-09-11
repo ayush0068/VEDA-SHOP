@@ -1,0 +1,304 @@
+// Prisma Database Schema for Premium Gemstone & Vedic Astrology E-Commerce Platform
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CUSTOMER
+  ASTROLOGER
+  ADMIN
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+enum MetalOption {
+  SILVER_925
+  PANCHDHATU
+  GOLD_14K
+  GOLD_18K
+  GOLD_22K
+  ROSE_GOLD
+}
+
+model User {
+  id                      String                  @id @default(uuid())
+  email                   String                  @unique
+  passwordHash            String?
+  fullName                String
+  phone                   String?
+  role                    Role                    @default(CUSTOMER)
+  googleId                String?
+  avatarUrl               String?
+  dob                     DateTime?
+  tob                     String?
+  pob                     String?
+  rashi                   String?
+  createdAt               DateTime                @default(now())
+  updatedAt               DateTime                @updatedAt
+
+  orders                  Order[]
+  wishlists               Wishlist[]
+  reviews                 Review[]
+  addresses               Address[]
+  astrologyRecommendations AstrologyRecommendation[]
+  consultationRequests    ConsultationRequest[]
+}
+
+model Address {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fullName     String
+  phone        String
+  addressLine1 String
+  addressLine2 String?
+  city         String
+  state        String
+  pincode      String
+  country      String   @default("India")
+  isDefault    Boolean  @default(false)
+}
+
+model Category {
+  id          String    @id @default(uuid())
+  name        String
+  slug        String    @unique
+  description String?
+  image       String?
+  products    Product[]
+}
+
+model Collection {
+  id          String    @id @default(uuid())
+  title       String
+  slug        String    @unique
+  subtitle    String?
+  image       String?
+  products    Product[]
+}
+
+model Product {
+  id                  String               @id @default(uuid())
+  name                String
+  slug                String               @unique
+  description         String
+  shortDescription    String?
+  gemstoneType        String?              // Ruby, Emerald, Blue Sapphire etc.
+  origin              String?              // Ceylon, Zambia, Burma etc.
+  carat               Float?
+  ratti               Float?
+  color               String?
+  clarity             String?
+  cut                 String?
+  shape               String?
+  treatment           String?              // Unheated & Untreated
+  certificateAgency   String?              // IGI, GIA, GTL
+  certificateNumber   String?              @unique
+  price               Float
+  compareAtPrice      Float?
+  discount            Float?               @default(0)
+  stock               Int                  @default(1)
+  images              String[]
+  videos              String[]
+  sku                 String               @unique
+  rating              Float                @default(5.0)
+  reviewsCount        Int                  @default(0)
+  isFeatured          Boolean              @default(false)
+  isBestseller        Boolean              @default(false)
+  isCertified         Boolean              @default(true)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+
+  categoryId          String?
+  category            Category?            @relation(fields: [categoryId], references: [id])
+  collectionId        String?
+  collection          Collection?          @relation(fields: [collectionId], references: [id])
+  certificates        Certificate[]
+  reviews             Review[]
+  orderItems          OrderItem[]
+  cartItems           CartItem[]
+  customizations      JewelleryCustomization[]
+}
+
+model Certificate {
+  id                String   @id @default(uuid())
+  productId         String
+  product           Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  labName           String   // GIA, IGI, GTL
+  reportNumber      String   @unique
+  issueDate         DateTime
+  gemstoneWeight    Float
+  dimensions        String
+  shapeCut          String
+  colorClarity      String
+  treatmentStatus   String   // Unheated / Natural
+  certificatePdfUrl String?
+}
+
+model JewelleryCustomization {
+  id              String      @id @default(uuid())
+  productId       String?
+  product         Product?    @relation(fields: [productId], references: [id])
+  jewelryType     String      // Ring, Pendant, Bracelet
+  metal           MetalOption @default(GOLD_18K)
+  ringSize        String?
+  customNotes     String?
+  imageReference  String?
+  estimatedPrice  Float?
+  status          String      @default("PENDING")
+  createdAt       DateTime    @default(now())
+}
+
+model Cart {
+  id        String     @id @default(uuid())
+  userId    String?    @unique
+  items     CartItem[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model CartItem {
+  id          String   @id @default(uuid())
+  cartId      String
+  cart        Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id])
+  quantity    Int      @default(1)
+  metalOption String?
+  ringSize    String?
+}
+
+model Order {
+  id              String        @id @default(uuid())
+  orderNumber     String        @unique
+  userId          String?
+  user            User?         @relation(fields: [userId], references: [id])
+  subtotal        Float
+  discount        Float         @default(0)
+  shippingFee     Float         @default(0)
+  totalAmount     Float
+  status          OrderStatus   @default(PENDING)
+  paymentStatus   PaymentStatus @default(PENDING)
+  razorpayOrderId String?       @unique
+  razorpayPaymentId String?
+  shippingAddress Json
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  items           OrderItem[]
+}
+
+model OrderItem {
+  id          String   @id @default(uuid())
+  orderId     String
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id])
+  quantity    Int
+  price       Float
+  metalOption String?
+  ringSize    String?
+}
+
+model Wishlist {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String
+  createdAt DateTime @default(now())
+}
+
+model Review {
+  id               String   @id @default(uuid())
+  userId           String?
+  user             User?    @relation(fields: [userId], references: [id])
+  productId        String
+  product          Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  rating           Int
+  comment          String
+  verifiedPurchase Boolean  @default(true)
+  customerName     String
+  isApproved       Boolean  @default(true)
+  createdAt        DateTime @default(now())
+}
+
+model Coupon {
+  id            String    @id @default(uuid())
+  code          String    @unique
+  discountPct   Float?
+  discountFixed Float?
+  minOrderValue Float     @default(0)
+  expiresAt     DateTime?
+  isActive      Boolean   @default(true)
+}
+
+model BlogPost {
+  id          String   @id @default(uuid())
+  title       String
+  slug        String   @unique
+  category    String
+  excerpt     String
+  content     String
+  author      String
+  readTime    String
+  image       String
+  seoTitle    String?
+  seoKeywords String?
+  createdAt   DateTime @default(now())
+}
+
+model AstrologyRecommendation {
+  id                  String   @id @default(uuid())
+  userId              String?
+  user                User?    @relation(fields: [userId], references: [id])
+  fullName            String
+  dob                 DateTime
+  tob                 String
+  pob                 String
+  primaryGoal         String
+  userRashi           String
+  nakshatra           String
+  recommendedGemstone String
+  alternativeGemstone String
+  rulingPlanet        String
+  suggestedCaratRange String
+  suggestedMetal      String
+  suggestedFinger     String
+  suggestedWearingDay String
+  mantra              String
+  createdAt           DateTime @default(now())
+}
+
+model ConsultationRequest {
+  id           String   @id @default(uuid())
+  userId       String?
+  user         User?    @relation(fields: [userId], references: [id])
+  fullName     String
+  email        String
+  phone        String
+  preferredDate DateTime?
+  topic        String
+  status       String   @default("PENDING")
+  createdAt    DateTime @default(now())
+}
