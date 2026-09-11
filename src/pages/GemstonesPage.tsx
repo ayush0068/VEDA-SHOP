@@ -5,6 +5,8 @@ import { Breadcrumb } from '../components/Breadcrumb';
 import { GemstoneHero } from '../components/GemstoneHero';
 import { GemstoneWaySelector } from '../components/GemstoneWaySelector';
 import { GemstonePurposeGrid } from '../components/GemstonePurposeGrid';
+import { GemstoneNinePlanets } from '../components/GemstoneNinePlanets';
+import { FeaturedGemstones } from '../components/FeaturedGemstones';
 import { GemstoneCategoryNav } from '../components/GemstoneCategoryNav';
 import { GemstoneZodiacStrip } from '../components/GemstoneZodiacStrip';
 import { GemstoneCard } from '../components/GemstoneCard';
@@ -197,10 +199,23 @@ export const GemstonesPage: React.FC = () => {
         onViewAllPurposes={() => navigate('/guides/gemstone')}
       />
 
+      {/* 1d. The Nine Planets. The Nine Traditional Gemstones. */}
+      <GemstoneNinePlanets
+        onSelectPlanet={(planetSlug) => navigate(`/planets/${planetSlug}`)}
+        onLearnMore={() => navigate('/guides/gemstone')}
+        onCheckKundli={() => setIsFindMyGemstoneOpen(true)}
+      />
+
       {/* Find My Gemstone Guided Flow Modal */}
       <FindMyGemstoneModal
         isOpen={isFindMyGemstoneOpen}
         onClose={() => setIsFindMyGemstoneOpen(false)}
+      />
+
+      {/* 1e. Explore Our Featured Gemstones */}
+      <FeaturedGemstones
+        onSelectGemstone={(slug) => navigate(`/gemstones/${slug}`)}
+        onViewAllGemstones={() => handleCategorySelect('all')}
       />
 
       {/* 2. Horizontal Sticky Category Navigation */}
