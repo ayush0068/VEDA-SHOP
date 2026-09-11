@@ -231,13 +231,21 @@ export const GemstonesPage: React.FC = () => {
         onViewAllCategories={() => handleCategorySelect('all')}
       />
 
-      {/* 2. Horizontal Sticky Category Navigation */}
+      {/* ================================================================
+          COMMENTED OUT PER REQUEST: everything below "Explore Gemstones by
+          Category" (Category Nav, Zodiac Strip, and the full Main Catalog
+          Content Area — breadcrumb, control bar, sidebar filters, gemstone
+          grid, empty state, and bottom category note) is temporarily
+          disabled so the Footer renders directly after that section.
+          Uncomment this block to restore the catalog section.
+
+      {/ * 2. Horizontal Sticky Category Navigation * /}
       <GemstoneCategoryNav
         activeCategorySlug={activeCategorySlug}
         onSelectCategory={handleCategorySelect}
       />
 
-      {/* 3. Zodiac Strip Section */}
+      {/ * 3. Zodiac Strip Section * /}
       {activeCategorySlug === 'all' && !searchQuery && (
         <GemstoneZodiacStrip
           onSelectGemstone={(slug) => navigate(`/gemstones/${slug}`)}
@@ -245,9 +253,9 @@ export const GemstonesPage: React.FC = () => {
         />
       )}
 
-      {/* 4. Main Catalog Content Area */}
+      {/ * 4. Main Catalog Content Area * /}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
-        {/* Breadcrumb */}
+        {/ * Breadcrumb * /}
         <div className="mb-6">
           <Breadcrumb
             items={[
@@ -257,7 +265,7 @@ export const GemstonesPage: React.FC = () => {
           />
         </div>
 
-        {/* Catalog Control Bar */}
+        {/ * Catalog Control Bar * /}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 mb-6 border-b border-amber-800/40">
           <div>
             <h2 className="text-xl sm:text-2xl font-serif font-bold text-amber-100 flex items-center gap-2">
@@ -273,9 +281,9 @@ export const GemstonesPage: React.FC = () => {
             )}
           </div>
 
-          {/* Filter & Sort Controls */}
+          {/ * Filter & Sort Controls * /}
           <div className="flex items-center gap-3">
-            {/* Mobile Filter Toggle */}
+            {/ * Mobile Filter Toggle * /}
             <button
               onClick={() => setIsMobileFilterOpen(true)}
               className="lg:hidden inline-flex items-center gap-2 px-4 py-2 bg-amber-900/60 border border-amber-700/50 rounded-xl text-xs font-semibold text-amber-200 hover:bg-amber-800 transition-colors"
@@ -284,7 +292,7 @@ export const GemstonesPage: React.FC = () => {
               <span>Filters</span>
             </button>
 
-            {/* Sorting Dropdown */}
+            {/ * Sorting Dropdown * /}
             <div className="flex items-center gap-2">
               <span className="hidden sm:inline text-xs text-amber-400/80 font-medium">Sort By:</span>
               <select
@@ -303,9 +311,9 @@ export const GemstonesPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Sidebar + Gemstone Grid Layout */}
+        {/ * Sidebar + Gemstone Grid Layout * /}
         <div className="flex gap-8">
-          {/* Left Sidebar Filter */}
+          {/ * Left Sidebar Filter * /}
           <GemstoneFiltersSidebar
             filters={filters}
             onFilterChange={setFilters}
@@ -315,7 +323,7 @@ export const GemstonesPage: React.FC = () => {
             totalResults={sortedGemstones.length}
           />
 
-          {/* Main Grid Area */}
+          {/ * Main Grid Area * /}
           <main className="flex-1 min-w-0">
             {sortedGemstones.length > 0 ? (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
@@ -328,7 +336,7 @@ export const GemstonesPage: React.FC = () => {
                 ))}
               </div>
             ) : (
-              /* Empty State */
+              /' Empty State '/
               <div className="text-center py-16 px-4 bg-amber-950/40 border border-amber-800/30 rounded-2xl max-w-md mx-auto my-8">
                 <div className="w-16 h-16 bg-amber-900/40 rounded-full flex items-center justify-center mx-auto mb-4 text-amber-400">
                   <Search className="w-8 h-8" />
@@ -349,7 +357,7 @@ export const GemstonesPage: React.FC = () => {
               </div>
             )}
 
-            {/* Bottom Category Note */}
+            {/ * Bottom Category Note * /}
             {activeCategorySlug !== 'all' && (
               <div className="mt-12 text-center pt-8 border-t border-amber-800/30">
                 <button
@@ -364,6 +372,7 @@ export const GemstonesPage: React.FC = () => {
           </main>
         </div>
       </div>
+      ================================================================ */}
     </div>
   );
 };

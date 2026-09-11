@@ -37,12 +37,22 @@ export const GemstoneHero: React.FC<GemstoneHeroProps> = ({
     <div className="bg-vedic-ivory">
       {/* Hero — single full-bleed banner photo with copy overlaid on its softly-lit left side */}
       <div className="relative overflow-hidden min-h-[420px] sm:min-h-[440px] lg:min-h-[480px] flex items-center">
-        {/* Full-width background photo (fades to cream on the left for text legibility) */}
+        {/* Full-width background photo (fades to cream on the left for text legibility).
+            On mobile the frame is much narrower/taller than the wide source photo, so
+            "object-right" alone crops in tight on the gem cluster with no cream fade
+            behind the text — object position is shifted left on mobile only (sm: restores
+            the original desktop crop untouched) and paired with a mobile-only gradient
+            scrim below for reliable text contrast. */}
         <img
           src="/images/gemstones-page/hero-banner-bg.png"
           alt="Blue sapphire, ruby, diamond and yellow sapphire gemstones resting on natural stone"
-          className="absolute inset-0 w-full h-full object-cover object-right"
+          className="absolute inset-0 w-full h-full object-cover object-[68%_center] sm:object-right"
         />
+
+        {/* Mobile-only scrim: recreates the left-side cream fade that the desktop crop
+            already shows naturally, so heading/paragraph/buttons stay legible over the
+            gemstones. Hidden from sm breakpoint up — desktop is untouched. */}
+        <div className="absolute inset-0 bg-gradient-to-r from-vedic-ivory via-vedic-ivory/90 to-vedic-ivory/25 sm:hidden" />
 
         {/* Copy, sitting on top of the photo's faded left side */}
         <div className="relative w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 sm:py-16">

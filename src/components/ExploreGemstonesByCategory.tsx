@@ -9,10 +9,11 @@ interface ExploreGemstonesByCategoryProps {
   onViewAllCategories: () => void;
 }
 
-// Representative thumbnail for each category — reuses the same catalog images already
-// shown elsewhere (Featured Gemstones, Nine Planets), so no new image assets are needed.
-const preciousThumb = GEMSTONE_CATALOG_DATA.find((g) => g.slug === 'ruby')?.image;
-const semiPreciousThumb = GEMSTONE_CATALOG_DATA.find((g) => g.slug === 'amethyst')?.image;
+// Representative thumbnail for each category.
+// "Precious Gemstones" always shows the Ruby — served locally from /public so it loads
+// reliably and crops/displays consistently (no dependency on the remote catalog image).
+const preciousThumb = '/images/gemstones-page/Ruby.png';
+const semiPreciousThumb = '/images/gemstones-page/BlueSapphire.png';
 
 const CATEGORY_CARDS = [
   {
@@ -71,14 +72,16 @@ export const ExploreGemstonesByCategory: React.FC<ExploreGemstonesByCategoryProp
             >
               <ChevronRight className="absolute top-4 right-4 w-4 h-4 text-vedic-gold/70 group-hover:text-vedic-goldDark transition-colors" />
 
-              {/* Icon / Thumbnail */}
+              {/* Icon / Thumbnail — mix-blend-multiply drops the source image's own
+                  white/cream background so only the gemstone itself is visible, blending
+                  cleanly into the card's white background with no visible box behind it. */}
               {cat.image ? (
-                <div className="w-14 h-14 rounded-xl bg-[#FBF6EE] flex items-center justify-center overflow-hidden shrink-0">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center overflow-hidden shrink-0">
                   <img
                     src={cat.image}
                     alt={cat.title}
                     loading="lazy"
-                    className="w-full h-full object-contain mix-blend-multiply"
+                    className="max-w-full max-h-full w-auto h-auto object-contain mix-blend-multiply"
                     onError={(e) => {
                       (e.target as HTMLImageElement).src = `https://placehold.co/200x200/FFF5DE/E9A331?text=${encodeURIComponent(
                         cat.title
