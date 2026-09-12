@@ -195,31 +195,37 @@ export const GemstonesPage: React.FC = () => {
         onGemstoneClick={() => handleCategorySelect('all')}
       />
 
-      {/* 1c. Shop By Purpose Section */}
+      {/* 1c. Explore Our Featured Gemstones */}
+      <FeaturedGemstones
+        onSelectGemstone={(slug) => navigate(`/gemstones/${slug}`)}
+        onViewAllGemstones={() => navigate('/gemstones/view-all')}
+      />
+
+      {/* 1d. Shop By Purpose Section */}
       <GemstonePurposeGrid
         onSelectPurpose={(purposeSlug) => navigate(`/purpose/${purposeSlug}`)}
         onViewAllPurposes={() => navigate('/guides/gemstone')}
       />
 
-      {/* 1d. The Nine Planets. The Nine Traditional Gemstones. */}
+      {/* 1e. The Nine Planets. The Nine Traditional Gemstones. */}
       <GemstoneNinePlanets
         onSelectPlanet={(planetSlug) => navigate(`/planets/${planetSlug}`)}
         onLearnMore={() => navigate('/guides/gemstone')}
         onCheckKundli={() => setIsFindMyGemstoneOpen(true)}
       />
 
-      {/* Find My Gemstone Guided Flow Modal */}
-      <FindMyGemstoneModal
-        isOpen={isFindMyGemstoneOpen}
-        onClose={() => setIsFindMyGemstoneOpen(false)}
-      />
+        {/* Find My Gemstone Guided Flow Modal */}
+        <FindMyGemstoneModal
+          isOpen={isFindMyGemstoneOpen}
+          onClose={() => setIsFindMyGemstoneOpen(false)}
+        />
 
       {/* 1e. Explore Our Featured Gemstones */}
-      <FeaturedGemstones
+      {/* <FeaturedGemstones
         onSelectGemstone={(slug) => navigate(`/gemstones/${slug}`)}
         onViewAllGemstones={() => navigate('/gemstones/view-all')}
-      />
-
+      /> */}
+      
       {/* 1f. Not Sure Which Gemstone Is Right for You? — Personalized Recommendation Strip */}
       <PersonalizedRecommendationStrip
         onFindMyGemstone={() => setIsFindMyGemstoneOpen(true)}
