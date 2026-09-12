@@ -11,7 +11,7 @@ import { PURPOSE_LIST } from '../data/purposeData';
 import { ProductCard } from '../components/ProductCard';
 import { VideoProductCard } from '../components/VideoProductCard';
 import { FindMyProductModal } from '../components/FindMyProductModal';
-import { HeroBannerSlider } from '../components/HeroBannerSlider';
+import { HomeHero } from '../components/HomeHero';
 import { Product } from '../types/ecommerce';
 
 const REVIEWS = [
@@ -205,8 +205,8 @@ export const HomePage: React.FC = () => {
       {/* Recommendation Quiz Modal */}
       <FindMyProductModal isOpen={isQuizOpen} onClose={() => setIsQuizOpen(false)} />
 
-      {/* 01. HERO SLIDER BANNER */}
-      <HeroBannerSlider />
+      {/* 01. HERO SECTION */}
+      <HomeHero onFindProductClick={() => setIsQuizOpen(true)} />
 
       {/* 02. TRUST STRIP BAR - SINGLE LINE CONTINUOUS SLIDER */}
       <section className="w-full bg-[#FFF5DE] border-y border-[#E9A331]/30 py-3.5 shadow-inner overflow-hidden relative">
