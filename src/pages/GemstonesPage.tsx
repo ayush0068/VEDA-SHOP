@@ -217,7 +217,7 @@ export const GemstonesPage: React.FC = () => {
       {/* 1e. Explore Our Featured Gemstones */}
       <FeaturedGemstones
         onSelectGemstone={(slug) => navigate(`/gemstones/${slug}`)}
-        onViewAllGemstones={() => handleCategorySelect('all')}
+        onViewAllGemstones={() => navigate('/gemstones/view-all')}
       />
 
       {/* 1f. Not Sure Which Gemstone Is Right for You? — Personalized Recommendation Strip */}

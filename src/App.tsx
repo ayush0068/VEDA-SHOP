@@ -36,6 +36,7 @@ import { AuthenticityPage } from './pages/AuthenticityPage';
 import { PolicyPage } from './pages/PolicyPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { GemstonesPage } from './pages/GemstonesPage';
+import { AllGemstonesPage } from './pages/AllGemstonesPage';
 import { SingleGemstonePage } from './pages/SingleGemstonePage';
 import { PlanetGemstonesPage } from './pages/PlanetGemstonesPage';
 import { CertificationHubPage } from './pages/CertificationHubPage';
@@ -73,6 +74,7 @@ export const App: React.FC = () => {
                     <Route path="/gemstones/popular-vedic-gems" element={<GemstonesPage />} />
                     <Route path="/gemstones/exclusive" element={<GemstonesPage />} />
                     <Route path="/gemstones/other" element={<GemstonesPage />} />
+                    <Route path="/gemstones/view-all" element={<AllGemstonesPage />} />
                     <Route path="/gemstones/:slug" element={<SingleGemstonePage />} />
                     <Route path="/planets/:planetSlug" element={<PlanetGemstonesPage />} />
                     <Route path="/certification" element={<CertificationHubPage />} />
