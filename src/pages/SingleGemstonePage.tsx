@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   ShieldCheck,
@@ -9,6 +9,7 @@ import {
   HelpCircle,
   CheckCircle2,
   ChevronRight,
+  ChevronLeft,
   Sun,
   Compass,
   Award,
@@ -20,6 +21,113 @@ import { GemstoneCard } from '../components/GemstoneCard';
 import { GEMSTONE_CATALOG_DATA, WeightOption, GemstoneItem } from '../data/gemstoneCatalogData';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
+
+// Tab strip shown under the gemstone's guide header. Each entry jumps to a real section
+// already on this page where one exists ('#about', '#vedic-guidance', '#pricing'); the rest
+// (Who Should Wear, How to Wear, Types, Jewellery, Cleaning & Care, Buyer Beware, FAQs) are
+// placeholders for the dedicated content sections planned next — they currently just sit
+// as tab labels without a target section built yet.
+const PAGE_TABS: { label: string; anchor: string }[] = [
+  { label: 'About', anchor: '#about' },
+  { label: 'Who Should Wear', anchor: '#' },
+  { label: 'How to Wear', anchor: '#' },
+  { label: 'Benefits', anchor: '#vedic-guidance' },
+  { label: 'Types', anchor: '#' },
+  { label: 'Quality & Price', anchor: '#pricing' },
+  { label: 'Jewellery', anchor: '#' },
+  { label: 'Cleaning & Care', anchor: '#' },
+  { label: 'Buyer Beware', anchor: '#' },
+  { label: 'FAQs', anchor: '#' }
+];
+
+/**
+ * Demo "varieties / origin types" shown in the horizontal scroller under the gemstone header
+ * (e.g. Zambian Emerald, Colombian Emerald...). Keyed by `gemstoneType` from the catalog data.
+ *
+ * This is placeholder/demo content for now. When Shopify is connected, swap this for a real
+ * lookup — e.g. fetch the products tagged/collected under this gemstone's type — and return
+ * the same `{ name }` shape (or extend it with a real per-variety image/slug) so the scroller
+ * component below needs no changes.
+ */
+const GEMSTONE_VARIETY_DEMO_DATA: Record<string, string[]> = {
+  Emerald: [
+    'Zambian Emerald',
+    'Brazilian Emerald',
+    'Colombian Emerald',
+    'Ethiopian Emerald',
+    'Vivid Green Emerald',
+    'Russian Emerald',
+    'Panjshir Emerald',
+    'Indian Emerald',
+    'Swat Emerald'
+  ],
+  Ruby: [
+    'Burmese Ruby',
+    'Mozambique Ruby',
+    'Thai Ruby',
+    'African Ruby',
+    'Ceylon Ruby',
+    'Vietnamese Ruby',
+    'Madagascar Ruby'
+  ],
+  Sapphire: [
+    'Ceylon Blue Sapphire',
+    'Kashmir Blue Sapphire',
+    'Burmese Blue Sapphire',
+    'Madagascar Blue Sapphire',
+    'Australian Blue Sapphire',
+    'Thai Blue Sapphire'
+  ],
+  Pearl: ['South Sea Pearl', 'Basra Pearl', 'Hyderabadi Pearl', 'Venezuelan Pearl', 'Freshwater Pearl'],
+  Coral: ['Italian Red Coral', 'Japani Red Coral', 'Taiwan Red Coral'],
+  Hessonite: ['Ceylon Hessonite', 'African Hessonite'],
+  'Cat\'s Eye': ["Ceylon Cat's Eye", "Indian Cat's Eye", "Chrysoberyl Cat's Eye"]
+};
+
+/** Picks a variety list for this gemstone — matches by gemstoneType keyword, else falls back to a generic set. */
+function getGemstoneVarieties(gem: GemstoneItem): string[] {
+  const typeKey = Object.keys(GEMSTONE_VARIETY_DEMO_DATA).find((key) =>
+    gem.gemstoneType.toLowerCase().includes(key.toLowerCase())
+  );
+  if (typeKey) return GEMSTONE_VARIETY_DEMO_DATA[typeKey];
+
+  // Generic fallback so every gemstone always has something to show here.
+  return [
+    `Premium ${gem.name}`,
+    `Natural ${gem.name}`,
+    `Certified ${gem.name}`,
+    `${gem.origin} ${gem.name}`,
+    `Rare ${gem.name}`
+  ];
+}
+
+/**
+ * Optional per-gemstone image override for the big hero banner at the top of this page.
+ *
+ * By default the hero uses `gem.image` (from GEMSTONE_CATALOG_DATA / Shopify later) — so it
+ * already works with no setup. If you want to swap in your own photo for a specific gemstone
+ * here (without touching the data file), drop the file in /public/images/gemstones-page/hero/
+ * and add one line below, keyed by the gemstone's slug:
+ *
+ *   'blue-sapphire': '/images/gemstones-page/hero/blue-sapphire.png',
+ *   'emerald': '/images/gemstones-page/hero/emerald.png',
+ *
+ * Any slug not listed here just falls back to gem.image automatically.
+ */
+const HERO_IMAGE_OVERRIDES: Record<string, string> = {
+   'blue-sapphire': '/images/gemstones-page/all/hero/Blue-Sapphire.png',
+};
+
+/** A single option in the swappable "Types & Varieties" picker — the base gem itself, or one of its varieties. */
+interface GemstoneVariantOption {
+  key: string; // 'default' for the base gem, else a slugified variety name
+  name: string;
+  image: string;
+}
+
+function slugify(text: string): string {
+  return text.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+}
 
 export const SingleGemstonePage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -50,27 +158,98 @@ export const SingleGemstonePage: React.FC = () => {
 
   // Weight / Carat variant selection
   const [selectedWeight, setSelectedWeight] = useState<WeightOption>(gem.availableWeights[0]);
-  const [selectedImage, setSelectedImage] = useState<string>(gem.image);
   const [copiedLink, setCopiedLink] = useState(false);
 
+  // ------------------------------------------------------------------------
+  // "Types & Varieties" swap picker.
+  //
+  // `variantOptions` is the full set: the base gem itself ('default') plus every
+  // variety (e.g. Ceylon / Kashmir / Burmese Blue Sapphire). `activeVariantKey`
+  // is whichever one is currently on display up top and in the PDP below.
+  //
+  // Behaviour: whichever option is active is removed from the visible picker
+  // row, and whatever was active before slides back into the row in its place
+  // — so the row always shows "everything except what you're currently
+  // looking at", including the base gem once you've moved away from it.
+  //
+  // DEMO DATA NOTE: right now every variety reuses the base gem's image,
+  // price, description, benefits etc. — only the name actually changes.
+  // When Shopify is connected, `getGemstoneVarieties` (above) should instead
+  // return real variant records (own image, price, description...), and
+  // `activeVariant` below just needs those extra fields merged in the same
+  // way `name`/`image` are today. Nothing else in this component changes.
+  // ------------------------------------------------------------------------
+  const varieties = useMemo(() => getGemstoneVarieties(gem), [gem]);
+  const variantOptions: GemstoneVariantOption[] = useMemo(
+    () => [
+      { key: 'default', name: gem.name, image: HERO_IMAGE_OVERRIDES[gem.slug] || gem.image },
+      ...varieties.map((name) => ({
+        key: slugify(name),
+        name,
+        image: HERO_IMAGE_OVERRIDES[gem.slug] || gem.image // TODO(Shopify): use this variant's own image
+      }))
+    ],
+    [gem, varieties]
+  );
+
+  const [activeVariantKey, setActiveVariantKey] = useState<string>('default');
+  const activeVariant = variantOptions.find((v) => v.key === activeVariantKey) || variantOptions[0];
+  const pickerOptions = variantOptions.filter((v) => v.key !== activeVariantKey);
+
+  // Full display title — only the base gem gets the "(Hindi Stone)" suffix; a selected
+  // variety's own name (e.g. "Ceylon Blue Sapphire") is already descriptive on its own.
+  const displayTitle =
+    activeVariantKey === 'default' && gem.hindiName
+      ? `${gem.name} (${gem.hindiName.split(' ')[0]} Stone)`
+      : activeVariant.name;
+
+  // Reset back to the base gem whenever the person navigates to a different gemstone page.
+  useEffect(() => {
+    setActiveVariantKey('default');
+  }, [gem.slug]);
+
+  const [selectedImage, setSelectedImage] = useState<string>(activeVariant.image);
+  useEffect(() => {
+    setSelectedImage(activeVariant.image);
+  }, [activeVariant.image]);
+
+  const varietyScrollRef = useRef<HTMLDivElement>(null);
+  const scrollVarieties = (direction: 'left' | 'right') => {
+    varietyScrollRef.current?.scrollBy({ left: direction === 'left' ? -240 : 240, behavior: 'smooth' });
+  };
+
+  // Only show the prev/next arrows once the strip actually overflows and needs scrolling.
+  const [canScrollVarieties, setCanScrollVarieties] = useState(false);
+  useEffect(() => {
+    const checkOverflow = () => {
+      const el = varietyScrollRef.current;
+      if (el) setCanScrollVarieties(el.scrollWidth > el.clientWidth + 4);
+    };
+    checkOverflow();
+    window.addEventListener('resize', checkOverflow);
+    return () => window.removeEventListener('resize', checkOverflow);
+  }, [pickerOptions.length]);
+
   // Dynamic Price calculation based on weight multiplier
+  // (still driven by the base gem's price for now — see the DEMO DATA NOTE above)
   const calculatedPrice = Math.round(gem.startingPrice * selectedWeight.priceMultiplier);
 
-  // Product payload for global Cart & Wishlist context
+  // Product payload for global Cart & Wishlist context — reflects whichever
+  // variety is currently active, so "Add to Cart" adds the right one.
   const contextProductPayload = {
-    id: `${gem.id}-${selectedWeight.carat}ct`,
-    title: `${gem.name} (${selectedWeight.label})`,
+    id: `${gem.id}-${activeVariantKey}-${selectedWeight.carat}ct`,
+    title: `${activeVariant.name} (${selectedWeight.label})`,
     subtitle: gem.hindiName || gem.category,
     price: calculatedPrice,
     originalPrice: Math.round(calculatedPrice * 1.25),
     rating: 4.9,
     reviewsCount: 48,
-    images: [gem.image, ...gem.gallery],
+    images: [activeVariant.image, ...gem.gallery],
     category: gem.category,
     isBestSeller: !!gem.isPopular,
     isNew: !!gem.isExclusive,
     inStock: true,
-    sku: `GEM-${gem.id.toUpperCase()}-${selectedWeight.carat}CT`,
+    sku: `GEM-${gem.id.toUpperCase()}-${activeVariantKey.toUpperCase()}-${selectedWeight.carat}CT`,
     description: gem.description,
     benefits: gem.benefits,
     tags: [gem.category, gem.gemstoneType, gem.origin]
@@ -102,23 +281,171 @@ export const SingleGemstonePage: React.FC = () => {
   }, [gem]);
 
   const whatsappMessage = encodeURIComponent(
-    `Namaste! I am interested in inquiring about ${gem.name} (${gem.hindiName || ''}), Weight: ${selectedWeight.label}, Price: ₹${calculatedPrice.toLocaleString('en-IN')}. Please guide me.`
+    `Namaste! I am interested in inquiring about ${activeVariant.name}, Weight: ${selectedWeight.label}, Price: ₹${calculatedPrice.toLocaleString('en-IN')}. Please guide me.`
   );
 
   return (
-    <div className="bg-amber-950 text-amber-50 min-h-screen pb-20">
-      {/* Container */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
-        {/* Breadcrumbs */}
-        <div className="mb-6">
+    <>
+      {/* ------------------------------------------------------------------ */}
+      {/* NEW: Guide-style top header — matches the requested reference      */}
+      {/* layout, restyled to the site's Vedic (ivory/gold/maroon) theme.    */}
+      {/* Everything here reads straight off `gem` (GEMSTONE_CATALOG_DATA),  */}
+      {/* so once that data source is swapped for real Shopify products     */}
+      {/* (same shape, via the catalog service), this header needs no       */}
+      {/* changes at all — it will just render whatever comes from the API. */}
+      {/* ------------------------------------------------------------------ */}
+      <div className="bg-[#F7F4EF]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
           <Breadcrumb
             items={[
               { label: 'Gemstones', path: '/gemstones' },
-              { label: gem.category, path: `/gemstones/${gem.category.toLowerCase().replace(/ /g, '-')}` },
-              { label: gem.name }
+              { label: displayTitle }
             ]}
           />
         </div>
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-4 sm:pb-5 grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-8 items-center">
+          {/* Hero image — no card/frame, just the gemstone itself. mix-blend-multiply drops the
+              product photo's white studio background so only the stone shows on the page bg.
+              Swaps automatically to whichever variety is currently active. */}
+          <div className="lg:col-span-3 flex justify-center lg:justify-start">
+            <div className="w-full max-w-[200px] sm:max-w-[220px] aspect-[4/3] flex items-center justify-center">
+              <img
+                src={activeVariant.image}
+                alt={activeVariant.name}
+                className="max-w-[75%] max-h-[75%] object-contain mix-blend-multiply drop-shadow-xl"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = `https://placehold.co/600x600/F7F4EF/E9A331?text=${encodeURIComponent(
+                    activeVariant.name
+                  )}`;
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Title, description, top benefits */}
+          <div className="lg:col-span-9" id="about">
+            <h1 className="font-serif font-bold text-vedic-dark text-xl sm:text-2xl lg:text-3xl mb-2 inline-block relative pb-2">
+              {displayTitle}
+              <span className="absolute left-0 bottom-0 w-14 h-[3px] bg-vedic-dark" />
+            </h1>
+
+            <p className="text-xs sm:text-sm text-vedic-muted leading-relaxed mb-3 max-w-3xl">
+              {gem.description}
+            </p>
+
+            {gem.benefits && gem.benefits.length > 0 && (
+              <div className="flex flex-wrap gap-x-5 gap-y-1.5">
+                {gem.benefits.slice(0, 4).map((benefit, i) => (
+                  <span
+                    key={i}
+                    className="inline-flex items-center gap-1.5 text-xs sm:text-sm text-vedic-dark font-medium"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5 text-vedic-goldDark flex-shrink-0" />
+                    {benefit}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Section tab strip */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-5 sm:gap-7 overflow-x-auto no-scrollbar border-t border-vedic-gold/20 py-2.5 text-xs sm:text-sm font-semibold text-vedic-dark">
+            {PAGE_TABS.map((tab) => (
+              <a
+                key={tab.label}
+                href={tab.anchor}
+                className="whitespace-nowrap hover:text-vedic-maroon transition-colors"
+              >
+                {tab.label}
+              </a>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ------------------------------------------------------------------ */}
+      {/* "Types & Varieties" swap picker. Clicking an option makes it the    */}
+      {/* active gem shown above + in the shopping section below, and puts   */}
+      {/* whatever was active before back into this row. Demo data for now   */}
+      {/* (see GEMSTONE_VARIETY_DEMO_DATA above) — swap that for a real       */}
+      {/* Shopify variant lookup later; this section itself needs no changes.*/}
+      {/* ------------------------------------------------------------------ */}
+      <div id="types" className="bg-vedic-ivory border-t border-vedic-gold/10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14">
+          <div className="mb-8 sm:mb-10">
+            <p className="text-[11px] sm:text-xs font-bold tracking-[0.15em] text-vedic-goldDark uppercase mb-2">
+              Explore Varieties
+            </p>
+            <h2 className="font-serif font-semibold text-vedic-dark text-xl sm:text-2xl">
+              {gem.name} Types &amp; Varieties
+            </h2>
+          </div>
+
+          {/* Carousel row — prev/next arrows float over the edges and only appear once
+              the strip actually overflows and needs scrolling. */}
+          <div className="relative">
+            {canScrollVarieties && (
+              <button
+                onClick={() => scrollVarieties('left')}
+                aria-label="Scroll left"
+                className="hidden sm:flex absolute left-0 top-11 sm:top-12 -translate-x-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full border border-vedic-gold/30 bg-white items-center justify-center text-vedic-dark hover:bg-vedic-gold hover:border-vedic-gold hover:text-white transition-colors shadow-md"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+            )}
+
+            <div
+              ref={varietyScrollRef}
+              className="flex items-start gap-5 sm:gap-7 overflow-x-auto no-scrollbar scroll-smooth pt-2 pb-1"
+            >
+              {pickerOptions.map((option) => (
+                <button
+                  key={option.key}
+                  onClick={() => setActiveVariantKey(option.key)}
+                  className="flex-shrink-0 w-24 sm:w-28 flex flex-col items-center gap-2.5 group"
+                >
+                  <span className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-vedic-card flex items-center justify-center overflow-hidden transition-all duration-300 shadow-md ring-1 ring-vedic-dark/5 group-hover:ring-vedic-gold/50 group-hover:-translate-y-0.5 group-hover:shadow-lg">
+                    <img
+                      src={option.image}
+                      alt={option.name}
+                      className="w-[88%] h-[88%] object-contain mix-blend-multiply"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = `https://placehold.co/200x200/FFF5DE/E9A331?text=${encodeURIComponent(
+                          option.name
+                        )}`;
+                      }}
+                    />
+                  </span>
+                  <span className="text-xs sm:text-sm text-center leading-snug font-medium text-vedic-dark/80 group-hover:text-vedic-dark transition-colors">
+                    {option.name}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            {canScrollVarieties && (
+              <button
+                onClick={() => scrollVarieties('right')}
+                aria-label="Scroll right"
+                className="hidden sm:flex absolute right-0 top-11 sm:top-12 translate-x-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full border border-vedic-gold/30 bg-white items-center justify-center text-vedic-dark hover:bg-vedic-gold hover:border-vedic-gold hover:text-white transition-colors shadow-md"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ------------------------------------------------------------------ */}
+      {/* Existing shopping section (image gallery, weight/price, cart) —    */}
+      {/* left as-is for now; this gets its Vedic-theme pass next.          */}
+      {/* ------------------------------------------------------------------ */}
+      <div className="bg-amber-950 text-amber-50 min-h-screen pb-20">
+      {/* Container */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
 
         {/* Product PDP Top Section */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 mb-16">
@@ -139,13 +466,13 @@ export const SingleGemstonePage: React.FC = () => {
                 )}
               </div>
 
-              {/* Main Display Image */}
+              {/* Main Display Image — follows the active variety selected above */}
               <img
                 src={selectedImage}
-                alt={gem.name}
+                alt={activeVariant.name}
                 className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
                 onError={(e) => {
-                  (e.target as HTMLImageElement).src = `https://placehold.co/600x600/1F2937/F59E0B?text=${encodeURIComponent(gem.name)}`;
+                  (e.target as HTMLImageElement).src = `https://placehold.co/600x600/1F2937/F59E0B?text=${encodeURIComponent(activeVariant.name)}`;
                 }}
               />
             </div>
@@ -185,7 +512,7 @@ export const SingleGemstonePage: React.FC = () => {
           </div>
 
           {/* Right Column: Gem Info & Options (6 cols) */}
-          <div className="lg:col-span-6 space-y-6">
+          <div className="lg:col-span-6 space-y-6" id="pricing">
             <div>
               <div className="flex items-center justify-between text-xs text-amber-400/80 mb-2">
                 <span className="uppercase tracking-widest font-semibold">{gem.category}</span>
@@ -199,10 +526,10 @@ export const SingleGemstonePage: React.FC = () => {
               </div>
 
               <h1 className="text-3xl sm:text-4xl font-serif font-bold text-amber-100 mb-1">
-                {gem.name}
+                {activeVariant.name}
               </h1>
 
-              {gem.hindiName && (
+              {activeVariantKey === 'default' && gem.hindiName && (
                 <p className="text-lg font-serif text-amber-400 font-medium mb-4">
                   {gem.hindiName} {gem.alternateName ? `• ${gem.alternateName}` : ''}
                 </p>
@@ -323,7 +650,7 @@ export const SingleGemstonePage: React.FC = () => {
         </div>
 
         {/* 3. Vedic Astrology & Cultural Guidance Section */}
-        <section className="mb-16 bg-gradient-to-b from-amber-900/40 via-amber-950 to-amber-900/40 border border-amber-500/30 rounded-3xl p-6 sm:p-10 shadow-2xl relative overflow-hidden">
+        <section id="vedic-guidance" className="mb-16 bg-gradient-to-b from-amber-900/40 via-amber-950 to-amber-900/40 border border-amber-500/30 rounded-3xl p-6 sm:p-10 shadow-2xl relative overflow-hidden">
           <div className="max-w-4xl mx-auto space-y-8">
             <div className="text-center space-y-2">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 text-amber-400 text-xs font-semibold border border-amber-500/20">
@@ -454,6 +781,7 @@ export const SingleGemstonePage: React.FC = () => {
           </section>
         )}
       </div>
-    </div>
+      </div>
+    </>
   );
 };
