@@ -15,7 +15,9 @@ import {
   Award,
   Share2,
   Check,
-  Star
+  Star,
+  LayoutGrid,
+  List as ListIcon
 } from 'lucide-react';
 import { Breadcrumb } from '../components/Breadcrumb';
 import { GemstoneCard } from '../components/GemstoneCard';
@@ -127,6 +129,12 @@ function getGemstoneVarieties(gem: GemstoneItem): string[] {
  */
 const HERO_IMAGE_OVERRIDES: Record<string, string> = {
    'blue-sapphire': '/images/gemstones-page/all/hero/Blue-Sapphire.png',
+   'alexandrite': '/images/gemstones-page/all/hero/Alexandrite.png',
+   'amber': '/images/gemstones-page/all/hero/Amber.png',
+   'amethyst': '/images/gemstones-page/all/hero/Amethyst.png',
+   'ametrine': '/images/gemstones-page/all/hero/Ametrine.png',
+   'aquamarine': '/images/gemstones-page/all/hero/Aquamarine.png',
+   
 };
 
 /** A single option in the swappable "Types & Varieties" picker — the base gem itself, or one of its varieties. */
@@ -238,6 +246,15 @@ export const SingleGemstonePage: React.FC = () => {
   const collectionHandle = activeVariantKey === 'default' ? gem.slug : activeVariantKey;
   const [varietyProducts, setVarietyProducts] = useState<VarietyProductTile[]>([]);
   const [isVarietyLoading, setIsVarietyLoading] = useState(true);
+
+  // ------------------------------------------------------------------------
+  // Mobile-only Grid / List switch for the "Shop By Variety" listing below.
+  // This ONLY changes how cards render on small (mobile) screens — from
+  // `sm:` upward the layout is always the original grid card, regardless of
+  // this state, and the toggle control itself is hidden at `sm:` and above.
+  // Defaults to 'grid' on every load.
+  // ------------------------------------------------------------------------
+  const [mobileViewMode, setMobileViewMode] = useState<'grid' | 'list'>('grid');
 
   // Card image backdrop — a soft "stone color → near-white → stone color" gradient matched to
   // this gemstone's own color family (same theming used on the "View All Gemstones" tiles), so
@@ -566,11 +583,46 @@ export const SingleGemstonePage: React.FC = () => {
                 {activeVariant.name}
               </h2>
             </div>
-            {!isVarietyLoading && varietyProducts.length > 0 && (
-              <span className="text-xs text-vedic-muted font-medium">
-                {varietyProducts.length} listing{varietyProducts.length !== 1 ? 's' : ''} available
-              </span>
-            )}
+            <div className="flex items-center gap-3">
+              {!isVarietyLoading && varietyProducts.length > 0 && (
+                <span className="text-xs text-vedic-muted font-medium">
+                  {varietyProducts.length} listing{varietyProducts.length !== 1 ? 's' : ''} available
+                </span>
+              )}
+
+              {/* Grid / List switch — mobile only. Hidden from `sm:` upward on purpose,
+                  since desktop always keeps the multi-column grid layout. */}
+              {!isVarietyLoading && varietyProducts.length > 0 && (
+                <div className="flex sm:hidden items-center gap-0.5 bg-white border border-vedic-gold/25 rounded-lg p-0.5 shadow-sm">
+                  <button
+                    type="button"
+                    onClick={() => setMobileViewMode('grid')}
+                    aria-label="Grid view"
+                    aria-pressed={mobileViewMode === 'grid'}
+                    className={`p-1.5 rounded-md transition-colors ${
+                      mobileViewMode === 'grid'
+                        ? 'bg-vedic-maroon text-vedic-ivory'
+                        : 'text-vedic-muted hover:text-vedic-dark'
+                    }`}
+                  >
+                    <LayoutGrid className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMobileViewMode('list')}
+                    aria-label="List view"
+                    aria-pressed={mobileViewMode === 'list'}
+                    className={`p-1.5 rounded-md transition-colors ${
+                      mobileViewMode === 'list'
+                        ? 'bg-vedic-maroon text-vedic-ivory'
+                        : 'text-vedic-muted hover:text-vedic-dark'
+                    }`}
+                  >
+                    <ListIcon className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
           {isVarietyLoading ? (
@@ -594,114 +646,236 @@ export const SingleGemstonePage: React.FC = () => {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-5">
+            <div
+              className={`grid gap-4 sm:gap-5 ${
+                mobileViewMode === 'list' ? 'grid-cols-1' : 'grid-cols-2'
+              } sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5`}
+            >
               {varietyProducts.map((product) => {
                 const isVarietyLiked = isInWishlist(product.id);
                 const [baseName, tier] = product.title.split(' — ');
 
                 return (
-                  <div
-                    key={product.id}
-                    className="group bg-white rounded-2xl border border-vedic-gold/15 overflow-hidden shadow-card hover:shadow-card-hover hover:-translate-y-1 hover:border-vedic-gold/40 transition-all duration-300 flex flex-col"
-                  >
-                    {/* Image area — soft gradient auto-matched to this gemstone's own color */}
-                    <div
-                      className="relative aspect-square w-full p-6 flex items-center justify-center overflow-hidden"
-                      style={{ background: varietyCardGradient }}
-                    >
-                      {product.discountPercent > 0 && (
-                        <span className="absolute top-2.5 left-2.5 z-10 bg-vedic-maroon text-vedic-goldLight text-[10px] font-bold px-2 py-0.5 rounded-full shadow-md">
-                          {product.discountPercent}% OFF
-                        </span>
-                      )}
-
-                      <button
-                        onClick={() => handleToggleVarietyProductWishlist(product)}
-                        aria-label="Add to Wishlist"
-                        className={`absolute top-2.5 right-2.5 z-10 p-2 rounded-full backdrop-blur-md transition-all ${
-                          isVarietyLiked
-                            ? 'bg-red-50 text-red-600 shadow-md'
-                            : 'bg-white/80 text-gray-400 hover:text-red-500 hover:bg-white'
-                        }`}
-                      >
-                        <Heart className={`w-4 h-4 ${isVarietyLiked ? 'fill-current' : ''}`} />
-                      </button>
-
-                      <img
-                        src={product.image}
-                        alt={baseName}
-                        loading="lazy"
-                        className={`w-[78%] h-[78%] object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500 ${
-                          !product.inStock ? 'grayscale opacity-60' : ''
-                        }`}
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src = `https://placehold.co/400x400/FFFFFF/E9A331?text=${encodeURIComponent(
-                            baseName
-                          )}`;
-                        }}
-                      />
-
-                      {!product.inStock && (
-                        <span className="absolute bottom-2.5 left-1/2 -translate-x-1/2 z-10 bg-vedic-dark/85 text-white text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full">
-                          Sold Out
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Content — quality tier, name, rating, price, Add to Cart */}
-                    <div className="p-3.5 flex flex-col flex-1 justify-between bg-white">
-                      <div>
-                        {tier && (
-                          <span className="text-[9px] font-bold tracking-[0.1em] text-vedic-goldDark uppercase">
-                            {tier}
-                          </span>
-                        )}
-
-                        <h3 className="text-xs md:text-sm font-bold text-vedic-dark line-clamp-2 leading-snug mt-0.5">
-                          {baseName}
-                        </h3>
-
-                        <div className="flex items-center gap-1 mt-1.5">
-                          <div className="flex text-amber-400">
-                            {[...Array(5)].map((_, i) => (
-                              <Star
-                                key={i}
-                                className={`w-3 h-3 ${
-                                  i < Math.round(product.rating) ? 'fill-current' : 'text-gray-300'
-                                }`}
-                              />
-                            ))}
-                          </div>
-                          <span className="text-[10px] text-vedic-muted font-medium">
-                            ({product.reviewCount})
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="mt-3 pt-2 border-t border-vedic-beige flex items-center justify-between gap-2">
-                        <div className="flex items-baseline gap-1.5 min-w-0">
-                          <span className="text-sm md:text-base font-extrabold text-vedic-maroon truncate">
-                            ₹{product.price.toLocaleString('en-IN')}
-                          </span>
-                          {product.compareAtPrice > product.price && (
-                            <span className="text-[11px] text-vedic-muted line-through">
-                              ₹{product.compareAtPrice.toLocaleString('en-IN')}
+                  <React.Fragment key={product.id}>
+                    {/* --------------------------------------------------------------
+                        LIST ROW — mobile-only markup, shown ONLY when the mobile
+                        Grid/List switch above is set to "list" AND the viewport is
+                        below the `sm:` breakpoint. At `sm:` and up this is always
+                        hidden, so desktop is completely unaffected by the toggle.
+                       -------------------------------------------------------------- */}
+                    {mobileViewMode === 'list' && (
+                      <div className="flex sm:hidden bg-white rounded-2xl border border-vedic-gold/15 overflow-hidden shadow-card active:scale-[0.99] transition-transform duration-150">
+                        {/* Thumbnail */}
+                        <div
+                          className="relative w-28 flex-shrink-0 flex items-center justify-center overflow-hidden"
+                          style={{ background: varietyCardGradient }}
+                        >
+                          {product.discountPercent > 0 && (
+                            <span className="absolute top-1.5 left-1.5 z-10 bg-vedic-maroon text-vedic-goldLight text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow-md">
+                              {product.discountPercent}% OFF
+                            </span>
+                          )}
+                          <img
+                            src={product.image}
+                            alt={baseName}
+                            loading="lazy"
+                            className={`w-[80%] h-[80%] object-contain mix-blend-multiply ${
+                              !product.inStock ? 'grayscale opacity-60' : ''
+                            }`}
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = `https://placehold.co/400x400/FFFFFF/E9A331?text=${encodeURIComponent(
+                                baseName
+                              )}`;
+                            }}
+                          />
+                          {!product.inStock && (
+                            <span className="absolute bottom-1 left-1/2 -translate-x-1/2 z-10 bg-vedic-dark/85 text-white text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full whitespace-nowrap">
+                              Sold Out
                             </span>
                           )}
                         </div>
 
+                        {/* Details */}
+                        <div className="flex-1 min-w-0 p-3 flex flex-col justify-between">
+                          <div>
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                {tier && (
+                                  <span className="text-[9px] font-bold tracking-[0.1em] text-vedic-goldDark uppercase">
+                                    {tier}
+                                  </span>
+                                )}
+                                <h3 className="text-sm font-bold text-vedic-dark line-clamp-2 leading-snug mt-0.5">
+                                  {baseName}
+                                </h3>
+                              </div>
+                              <button
+                                onClick={() => handleToggleVarietyProductWishlist(product)}
+                                aria-label="Add to Wishlist"
+                                className={`flex-shrink-0 p-1.5 rounded-full transition-all ${
+                                  isVarietyLiked
+                                    ? 'bg-red-50 text-red-600'
+                                    : 'bg-vedic-beige/60 text-gray-400 hover:text-red-500'
+                                }`}
+                              >
+                                <Heart className={`w-3.5 h-3.5 ${isVarietyLiked ? 'fill-current' : ''}`} />
+                              </button>
+                            </div>
+
+                            <div className="flex items-center gap-1 mt-1">
+                              <div className="flex text-amber-400">
+                                {[...Array(5)].map((_, i) => (
+                                  <Star
+                                    key={i}
+                                    className={`w-3 h-3 ${
+                                      i < Math.round(product.rating) ? 'fill-current' : 'text-gray-300'
+                                    }`}
+                                  />
+                                ))}
+                              </div>
+                              <span className="text-[10px] text-vedic-muted font-medium">
+                                ({product.reviewCount})
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="mt-2 flex items-end justify-between gap-2">
+                            <div className="flex items-baseline gap-1.5 flex-wrap min-w-0">
+                              <span className="text-sm font-extrabold text-vedic-maroon">
+                                ₹{product.price.toLocaleString('en-IN')}
+                              </span>
+                              {product.compareAtPrice > product.price && (
+                                <span className="text-[10px] text-vedic-muted line-through">
+                                  ₹{product.compareAtPrice.toLocaleString('en-IN')}
+                                </span>
+                              )}
+                            </div>
+
+                            <button
+                              onClick={() => handleAddVarietyProductToCart(product)}
+                              disabled={!product.inStock}
+                              className="flex-shrink-0 bg-vedic-gold/10 hover:bg-vedic-maroon text-vedic-maroon hover:text-vedic-ivory p-2 rounded-xl transition-all duration-200 border border-vedic-gold/30 hover:border-transparent flex items-center gap-1 text-[11px] font-bold disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-vedic-gold/10 disabled:hover:text-vedic-maroon"
+                              title={product.inStock ? 'Add to Cart' : 'Out of Stock'}
+                            >
+                              <ShoppingBag className="w-3.5 h-3.5" />
+                              <span>{product.inStock ? 'Add' : 'Sold Out'}</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* --------------------------------------------------------------
+                        GRID CARD — the original vertical card design. Always shown
+                        at `sm:` and above (desktop is never affected by the toggle).
+                        On mobile it's shown only when the switch is on "grid" (the
+                        default), and hidden when "list" is selected. Price/Add-to-Cart
+                        row is now stacked so the full price is never truncated.
+                       -------------------------------------------------------------- */}
+                    <div
+                      className={`${
+                        mobileViewMode === 'list' ? 'hidden sm:flex' : 'flex'
+                      } group bg-white rounded-2xl border border-vedic-gold/15 overflow-hidden shadow-card hover:shadow-card-hover hover:-translate-y-1 hover:border-vedic-gold/40 transition-all duration-300 flex-col`}
+                    >
+                      {/* Image area — soft gradient auto-matched to this gemstone's own color */}
+                      <div
+                        className="relative aspect-square w-full p-6 flex items-center justify-center overflow-hidden"
+                        style={{ background: varietyCardGradient }}
+                      >
+                        {product.discountPercent > 0 && (
+                          <span className="absolute top-2.5 left-2.5 z-10 bg-vedic-maroon text-vedic-goldLight text-[10px] font-bold px-2 py-0.5 rounded-full shadow-md">
+                            {product.discountPercent}% OFF
+                          </span>
+                        )}
+
                         <button
-                          onClick={() => handleAddVarietyProductToCart(product)}
-                          disabled={!product.inStock}
-                          className="flex-shrink-0 bg-vedic-gold/10 hover:bg-vedic-maroon text-vedic-maroon hover:text-vedic-ivory p-2 rounded-xl transition-all duration-200 border border-vedic-gold/30 hover:border-transparent flex items-center gap-1 text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-vedic-gold/10 disabled:hover:text-vedic-maroon"
-                          title={product.inStock ? 'Add to Cart' : 'Out of Stock'}
+                          onClick={() => handleToggleVarietyProductWishlist(product)}
+                          aria-label="Add to Wishlist"
+                          className={`absolute top-2.5 right-2.5 z-10 p-2 rounded-full backdrop-blur-md transition-all ${
+                            isVarietyLiked
+                              ? 'bg-red-50 text-red-600 shadow-md'
+                              : 'bg-white/80 text-gray-400 hover:text-red-500 hover:bg-white'
+                          }`}
                         >
-                          <ShoppingBag className="w-4 h-4" />
-                          <span className="hidden sm:inline">{product.inStock ? 'Add' : 'Sold Out'}</span>
+                          <Heart className={`w-4 h-4 ${isVarietyLiked ? 'fill-current' : ''}`} />
                         </button>
+
+                        <img
+                          src={product.image}
+                          alt={baseName}
+                          loading="lazy"
+                          className={`w-[78%] h-[78%] object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500 ${
+                            !product.inStock ? 'grayscale opacity-60' : ''
+                          }`}
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = `https://placehold.co/400x400/FFFFFF/E9A331?text=${encodeURIComponent(
+                              baseName
+                            )}`;
+                          }}
+                        />
+
+                        {!product.inStock && (
+                          <span className="absolute bottom-2.5 left-1/2 -translate-x-1/2 z-10 bg-vedic-dark/85 text-white text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full">
+                            Sold Out
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Content — quality tier, name, rating, price, Add to Cart */}
+                      <div className="p-3.5 flex flex-col flex-1 justify-between bg-white">
+                        <div>
+                          {tier && (
+                            <span className="text-[9px] font-bold tracking-[0.1em] text-vedic-goldDark uppercase">
+                              {tier}
+                            </span>
+                          )}
+
+                          <h3 className="text-xs md:text-sm font-bold text-vedic-dark line-clamp-2 leading-snug mt-0.5">
+                            {baseName}
+                          </h3>
+
+                          <div className="flex items-center gap-1 mt-1.5">
+                            <div className="flex text-amber-400">
+                              {[...Array(5)].map((_, i) => (
+                                <Star
+                                  key={i}
+                                  className={`w-3 h-3 ${
+                                    i < Math.round(product.rating) ? 'fill-current' : 'text-gray-300'
+                                  }`}
+                                />
+                              ))}
+                            </div>
+                            <span className="text-[10px] text-vedic-muted font-medium">
+                              ({product.reviewCount})
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="mt-3 pt-2 border-t border-vedic-beige space-y-2">
+                          <div className="flex items-baseline gap-1.5 flex-wrap">
+                            <span className="text-sm md:text-base font-extrabold text-vedic-maroon">
+                              ₹{product.price.toLocaleString('en-IN')}
+                            </span>
+                            {product.compareAtPrice > product.price && (
+                              <span className="text-[11px] text-vedic-muted line-through">
+                                ₹{product.compareAtPrice.toLocaleString('en-IN')}
+                              </span>
+                            )}
+                          </div>
+
+                          <button
+                            onClick={() => handleAddVarietyProductToCart(product)}
+                            disabled={!product.inStock}
+                            className="w-full bg-vedic-gold/10 hover:bg-vedic-maroon text-vedic-maroon hover:text-vedic-ivory py-2 px-3 rounded-xl transition-all duration-200 border border-vedic-gold/30 hover:border-transparent flex items-center justify-center gap-1.5 text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-vedic-gold/10 disabled:hover:text-vedic-maroon"
+                            title={product.inStock ? 'Add to Cart' : 'Out of Stock'}
+                          >
+                            <ShoppingBag className="w-3.5 h-3.5" />
+                            <span>{product.inStock ? 'Add to Cart' : 'Sold Out'}</span>
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  </React.Fragment>
                 );
               })}
             </div>
