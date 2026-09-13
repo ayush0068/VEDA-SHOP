@@ -79,6 +79,17 @@ function getColorFamily(colorLabel: string, gemstoneType: string): string {
   return 'Default';
 }
 
+/**
+ * Public helper — resolves the same saturated brand color used for a gem's tile backdrop
+ * on the "View All Gemstones" grid, so any other component (like the "Shop By Variety" cards
+ * on SingleGemstonePage) can build the identical color-matched gradient behind its own images.
+ * Pass it straight to buildTileGradient() to get the CSS gradient string.
+ */
+export function getGemstoneThemeColor(colorLabel: string, gemstoneType: string): string {
+  const colorFamily = getColorFamily(colorLabel, gemstoneType);
+  return COLOR_FAMILY_THEMES[colorFamily] || COLOR_FAMILY_THEMES.Default;
+}
+
 /** Shortens data strings like "Saturn (Shani)" or "Capricorn (Makar)" down to just "Saturn" / "Capricorn". */
 function shortLabel(value?: string): string {
   if (!value) return '';
@@ -163,6 +174,136 @@ async function fetchGemstoneTilesFromSource(): Promise<GemstoneTile[]> {
 /** Public entry point used by the "View All Gemstones" page. */
 export async function getAllGemstoneTiles(): Promise<GemstoneTile[]> {
   return fetchGemstoneTilesFromSource();
+}
+
+/**
+ * ---------------------------------------------------------------------
+ * VARIETY PRODUCT LISTINGS — powers the "Shop By Variety" grid on a
+ * single gemstone's detail page (SingleGemstonePage.tsx).
+ * ---------------------------------------------------------------------
+ * Every "Type & Variety" a person can pick for a gemstone (e.g. "Zambian
+ * Emerald", "Ceylon Blue Sapphire"...), including the plain base gemstone
+ * itself, maps 1:1 to a `collectionHandle`. In Shopify terms that's a
+ * Collection (or a tag) the admin manages directly from the Shopify
+ * dashboard — whatever products they add to it are exactly what shows up
+ * in the grid for that variety, and removing a product from the
+ * collection removes it from the grid. Full add/remove control lives in
+ * Shopify; nothing about which products appear is hardcoded here.
+ * ---------------------------------------------------------------------
+ */
+export interface VarietyProductTile {
+  id: string;
+  handle: string; // this variety's collection/tag handle — admin's add/remove control lives here in Shopify
+  title: string;
+  image: string;
+  price: number;
+  compareAtPrice: number;
+  discountPercent: number;
+  rating: number;
+  reviewCount: number;
+  inStock: boolean;
+}
+
+function hashHandle(text: string): number {
+  let hash = 0;
+  for (let i = 0; i < text.length; i++) {
+    hash = (hash << 5) - hash + text.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
+
+/**
+ * Quality-tier labels demo listings are cycled through so a variety with several listings
+ * (e.g. "Zambian Emerald") doesn't just repeat the same card 12 times. Purely cosmetic — once
+ * Shopify is connected, each listing's real title/tier comes from its own product record.
+ */
+const DEMO_QUALITY_TIERS = [
+  'Super Luxury',
+  'Luxury',
+  'Super Premium',
+  'Premium Plus',
+  'Classic',
+  'Certified',
+  'Natural',
+  'Rare Find',
+  "Collector's Choice",
+  'Fine Cut',
+  'Museum Grade',
+  'Heirloom',
+  'Signature',
+  'Everyday Elegance',
+  'Statement'
+];
+
+/**
+ * ---------------------------------------------------------------------
+ * DATA SOURCE — this is the ONLY function that needs to change when
+ * Shopify is connected. Replace the body with a real Storefront API call
+ * scoped to this variety's collection, e.g.:
+ *
+ *   const products = await shopifyClient.collection.fetchByHandle(collectionHandle);
+ *   return products.map(mapShopifyProductToVarietyTile);
+ *
+ * If the admin hasn't added any products to this collection yet (or has
+ * removed them all), just return an empty array — the grid on
+ * SingleGemstonePage.tsx already renders a clean "nothing listed yet"
+ * state for that case, no extra handling needed on either side.
+ * ---------------------------------------------------------------------
+ */
+async function fetchVarietyProductsFromSource(
+  collectionHandle: string,
+  fallbackTitle: string,
+  fallbackImage: string,
+  basePrice: number
+): Promise<VarietyProductTile[]> {
+  // Demo/placeholder data for now: a handful of plausible listings per variety (so the page
+  // looks like a real, well-stocked collection rather than one lonely card), all derived
+  // deterministically from the handle so nothing reshuffles across re-renders — only the
+  // count and numbers change when you switch variety, exactly like a real filtered listing
+  // would once Shopify is connected.
+  const h = hashHandle(collectionHandle);
+  const listingCount = 10 + (h % 6); // 10 - 15 demo listings
+
+  return Array.from({ length: listingCount }, (_, index) => {
+    const ih = hashHandle(`${collectionHandle}-${index}`);
+    const priceMultiplier = 0.75 + (ih % 60) / 100; // ~0.75x - 1.34x of the base gem's starting price
+    const price = Math.round((basePrice * priceMultiplier) / 10) * 10;
+    const discountPercent = 8 + (ih % 12); // 8% - 19%
+    const compareAtPrice = Math.round(price / (1 - discountPercent / 100) / 10) * 10;
+    const rating = Math.min(5, Math.round((3.7 + (ih % 14) / 10) * 10) / 10); // 3.7 - 5.0
+    const reviewCount = 40 + (ih % 520);
+    const tier = DEMO_QUALITY_TIERS[index % DEMO_QUALITY_TIERS.length];
+
+    return {
+      id: `${collectionHandle}-demo-${index}`,
+      handle: collectionHandle,
+      title: `${fallbackTitle} — ${tier}`,
+      image: fallbackImage,
+      price,
+      compareAtPrice,
+      discountPercent,
+      rating,
+      reviewCount,
+      inStock: ih % 17 !== 0 // the odd listing shows as sold out, same as a real catalog would
+    };
+  });
+}
+
+/** Public entry point used by SingleGemstonePage's "Shop By Variety" grid. */
+export async function getVarietyProducts(
+  collectionHandle: string,
+  fallbackTitle: string,
+  fallbackImage: string,
+  basePrice: number
+): Promise<VarietyProductTile[]> {
+  try {
+    return await fetchVarietyProductsFromSource(collectionHandle, fallbackTitle, fallbackImage, basePrice);
+  } catch {
+    // Graceful degradation: any Shopify hiccup shows an empty grid (handled by the page),
+    // never a visible error.
+    return [];
+  }
 }
 
 /** Distinct, sorted filter option lists — derived live from whatever data source is active. */

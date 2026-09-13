@@ -14,11 +14,13 @@ import {
   Compass,
   Award,
   Share2,
-  Check
+  Check,
+  Star
 } from 'lucide-react';
 import { Breadcrumb } from '../components/Breadcrumb';
 import { GemstoneCard } from '../components/GemstoneCard';
 import { GEMSTONE_CATALOG_DATA, WeightOption, GemstoneItem } from '../data/gemstoneCatalogData';
+import { getVarietyProducts, VarietyProductTile, getGemstoneThemeColor, buildTileGradient } from '../services/gemstoneCatalogService';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 
@@ -100,6 +102,15 @@ function getGemstoneVarieties(gem: GemstoneItem): string[] {
     `Rare ${gem.name}`
   ];
 }
+
+/**
+ * The "Shop By Variety" grid's product data (price, rating, images...) is fetched through
+ * getVarietyProducts() in services/gemstoneCatalogService.ts — see that file for the real
+ * Shopify swap-in point. Each variety's products are looked up by a `collectionHandle`
+ * (the variety's slug), which is exactly what an admin would manage as a Collection/tag in
+ * Shopify — add a product to it and it appears here, remove it and it disappears. No code
+ * changes needed on this page when that switch happens.
+ */
 
 /**
  * Optional per-gemstone image override for the big hero banner at the top of this page.
@@ -213,6 +224,48 @@ export const SingleGemstonePage: React.FC = () => {
     setSelectedImage(activeVariant.image);
   }, [activeVariant.image]);
 
+  // ------------------------------------------------------------------------
+  // "Shop By Variety" grid — the currently active Type/Variety acts as a live
+  // filter: whatever is picked above (starting with the plain base gem, e.g.
+  // "Emerald", on first load) decides which products this grid fetches and
+  // shows below. Swapping the active variety re-fetches, so the grid updates
+  // on its own — nothing to wire up beyond changing `activeVariantKey`.
+  //
+  // `collectionHandle` is exactly the handle an admin's Shopify Collection
+  // for this variety would use — see getVarietyProducts() in
+  // services/gemstoneCatalogService.ts for the real Shopify swap-in point.
+  // ------------------------------------------------------------------------
+  const collectionHandle = activeVariantKey === 'default' ? gem.slug : activeVariantKey;
+  const [varietyProducts, setVarietyProducts] = useState<VarietyProductTile[]>([]);
+  const [isVarietyLoading, setIsVarietyLoading] = useState(true);
+
+  // Card image backdrop — a soft "stone color → near-white → stone color" gradient matched to
+  // this gemstone's own color family (same theming used on the "View All Gemstones" tiles), so
+  // every card's backdrop automatically matches whatever stone it's showing, no manual styling
+  // needed per gemstone.
+  const varietyCardGradient = useMemo(
+    () => buildTileGradient(getGemstoneThemeColor(gem.color, gem.gemstoneType)),
+    [gem.color, gem.gemstoneType]
+  );
+
+  useEffect(() => {
+    let isCancelled = false;
+    setIsVarietyLoading(true);
+
+    getVarietyProducts(collectionHandle, activeVariant.name, activeVariant.image, gem.startingPrice).then(
+      (products) => {
+        if (!isCancelled) {
+          setVarietyProducts(products);
+          setIsVarietyLoading(false);
+        }
+      }
+    );
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [collectionHandle, activeVariant.name, activeVariant.image, gem.startingPrice]);
+
   const varietyScrollRef = useRef<HTMLDivElement>(null);
   const scrollVarieties = (direction: 'left' | 'right') => {
     varietyScrollRef.current?.scrollBy({ left: direction === 'left' ? -240 : 240, behavior: 'smooth' });
@@ -265,6 +318,54 @@ export const SingleGemstonePage: React.FC = () => {
   const handleBuyNow = () => {
     addToCart(contextProductPayload as any, 1);
     navigate('/checkout');
+  };
+
+  // Adds a specific listing straight to the cart from its "Shop By Variety" card, at the
+  // default carat weight, using that listing's own price (see getVarietyProducts()).
+  const handleAddVarietyProductToCart = (product: VarietyProductTile) => {
+    addToCart(
+      {
+        id: `${product.id}-${gem.availableWeights[0].carat}ct`,
+        title: `${product.title} (${gem.availableWeights[0].label})`,
+        subtitle: gem.hindiName || gem.category,
+        price: product.price,
+        originalPrice: product.compareAtPrice,
+        rating: product.rating,
+        reviewsCount: product.reviewCount,
+        images: [product.image, ...gem.gallery],
+        category: gem.category,
+        isBestSeller: !!gem.isPopular,
+        isNew: !!gem.isExclusive,
+        inStock: product.inStock,
+        sku: `GEM-${gem.id.toUpperCase()}-${product.handle.toUpperCase()}-${gem.availableWeights[0].carat}CT`,
+        description: gem.description,
+        benefits: gem.benefits,
+        tags: [gem.category, gem.gemstoneType, gem.origin]
+      } as any,
+      1
+    );
+    setIsCartOpen(true);
+  };
+
+  const handleToggleVarietyProductWishlist = (product: VarietyProductTile) => {
+    toggleWishlist({
+      id: product.id,
+      title: product.title,
+      subtitle: gem.hindiName || gem.category,
+      price: product.price,
+      originalPrice: product.compareAtPrice,
+      rating: product.rating,
+      reviewsCount: product.reviewCount,
+      images: [product.image, ...gem.gallery],
+      category: gem.category,
+      isBestSeller: !!gem.isPopular,
+      isNew: !!gem.isExclusive,
+      inStock: product.inStock,
+      sku: `GEM-${gem.id.toUpperCase()}-${product.handle.toUpperCase()}`,
+      description: gem.description,
+      benefits: gem.benefits,
+      tags: [gem.category, gem.gemstoneType, gem.origin]
+    } as any);
   };
 
   const handleShare = () => {
@@ -440,19 +541,196 @@ export const SingleGemstonePage: React.FC = () => {
       </div>
 
       {/* ------------------------------------------------------------------ */}
-      {/* Existing shopping section (image gallery, weight/price, cart) —    */}
-      {/* left as-is for now; this gets its Vedic-theme pass next.          */}
+      {/* "Shop By Variety" — this grid is a LIVE FILTER driven by whichever   */}
+      {/* Type/Variety is currently active up in the picker above. On first   */}
+      {/* load that's 'default' (the plain base gemstone, e.g. just           */}
+      {/* "Emerald"), so only that shows here. Clicking "Ceylon Blue          */}
+      {/* Sapphire" etc. in the picker re-fetches and swaps this grid to      */}
+      {/* that variety's own listing(s) — same pattern as a category filter.  */}
+      {/*                                                                     */}
+      {/* Each variety's products come from getVarietyProducts() keyed by a   */}
+      {/* `collectionHandle` (services/gemstoneCatalogService.ts) — once      */}
+      {/* Shopify is connected that handle is a real Collection an admin      */}
+      {/* manages directly: add a product to it and it appears here, remove   */}
+      {/* it and it's gone. Full add/remove control lives in Shopify, not in  */}
+      {/* this file — nothing here needs to change when that switch happens.  */}
       {/* ------------------------------------------------------------------ */}
-      <div className="bg-amber-950 text-amber-50 min-h-screen pb-20">
-      {/* Container */}
+      <div className="bg-vedic-ivory border-t border-vedic-gold/10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14">
+          <div className="mb-8 sm:mb-10 flex items-end justify-between gap-4 flex-wrap">
+            <div>
+              <p className="text-[11px] sm:text-xs font-bold tracking-[0.15em] text-vedic-goldDark uppercase mb-2">
+                Shop By Variety
+              </p>
+              <h2 className="font-serif font-semibold text-vedic-dark text-xl sm:text-2xl">
+                {activeVariant.name}
+              </h2>
+            </div>
+            {!isVarietyLoading && varietyProducts.length > 0 && (
+              <span className="text-xs text-vedic-muted font-medium">
+                {varietyProducts.length} listing{varietyProducts.length !== 1 ? 's' : ''} available
+              </span>
+            )}
+          </div>
+
+          {isVarietyLoading ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-5">
+              {[...Array(10)].map((_, i) => (
+                <div key={i} className="bg-white rounded-2xl border border-vedic-gold/15 overflow-hidden animate-pulse">
+                  <div className="aspect-square w-full bg-vedic-beige/60" />
+                  <div className="p-3.5 space-y-2">
+                    <div className="h-2.5 w-16 bg-vedic-beige/60 rounded-full" />
+                    <div className="h-3 w-3/4 bg-vedic-beige/60 rounded-full" />
+                    <div className="h-6 w-full bg-vedic-beige/40 rounded-lg mt-3" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : varietyProducts.length === 0 ? (
+            <div className="border border-dashed border-vedic-gold/30 rounded-2xl py-12 px-6 text-center bg-white/60">
+              <p className="text-sm font-semibold text-vedic-dark mb-1">Nothing listed under {activeVariant.name} yet</p>
+              <p className="text-xs text-vedic-muted">
+                Products added to this variety in the catalog will show up here automatically.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-5">
+              {varietyProducts.map((product) => {
+                const isVarietyLiked = isInWishlist(product.id);
+                const [baseName, tier] = product.title.split(' — ');
+
+                return (
+                  <div
+                    key={product.id}
+                    className="group bg-white rounded-2xl border border-vedic-gold/15 overflow-hidden shadow-card hover:shadow-card-hover hover:-translate-y-1 hover:border-vedic-gold/40 transition-all duration-300 flex flex-col"
+                  >
+                    {/* Image area — soft gradient auto-matched to this gemstone's own color */}
+                    <div
+                      className="relative aspect-square w-full p-6 flex items-center justify-center overflow-hidden"
+                      style={{ background: varietyCardGradient }}
+                    >
+                      {product.discountPercent > 0 && (
+                        <span className="absolute top-2.5 left-2.5 z-10 bg-vedic-maroon text-vedic-goldLight text-[10px] font-bold px-2 py-0.5 rounded-full shadow-md">
+                          {product.discountPercent}% OFF
+                        </span>
+                      )}
+
+                      <button
+                        onClick={() => handleToggleVarietyProductWishlist(product)}
+                        aria-label="Add to Wishlist"
+                        className={`absolute top-2.5 right-2.5 z-10 p-2 rounded-full backdrop-blur-md transition-all ${
+                          isVarietyLiked
+                            ? 'bg-red-50 text-red-600 shadow-md'
+                            : 'bg-white/80 text-gray-400 hover:text-red-500 hover:bg-white'
+                        }`}
+                      >
+                        <Heart className={`w-4 h-4 ${isVarietyLiked ? 'fill-current' : ''}`} />
+                      </button>
+
+                      <img
+                        src={product.image}
+                        alt={baseName}
+                        loading="lazy"
+                        className={`w-[78%] h-[78%] object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500 ${
+                          !product.inStock ? 'grayscale opacity-60' : ''
+                        }`}
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = `https://placehold.co/400x400/FFFFFF/E9A331?text=${encodeURIComponent(
+                            baseName
+                          )}`;
+                        }}
+                      />
+
+                      {!product.inStock && (
+                        <span className="absolute bottom-2.5 left-1/2 -translate-x-1/2 z-10 bg-vedic-dark/85 text-white text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full">
+                          Sold Out
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Content — quality tier, name, rating, price, Add to Cart */}
+                    <div className="p-3.5 flex flex-col flex-1 justify-between bg-white">
+                      <div>
+                        {tier && (
+                          <span className="text-[9px] font-bold tracking-[0.1em] text-vedic-goldDark uppercase">
+                            {tier}
+                          </span>
+                        )}
+
+                        <h3 className="text-xs md:text-sm font-bold text-vedic-dark line-clamp-2 leading-snug mt-0.5">
+                          {baseName}
+                        </h3>
+
+                        <div className="flex items-center gap-1 mt-1.5">
+                          <div className="flex text-amber-400">
+                            {[...Array(5)].map((_, i) => (
+                              <Star
+                                key={i}
+                                className={`w-3 h-3 ${
+                                  i < Math.round(product.rating) ? 'fill-current' : 'text-gray-300'
+                                }`}
+                              />
+                            ))}
+                          </div>
+                          <span className="text-[10px] text-vedic-muted font-medium">
+                            ({product.reviewCount})
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="mt-3 pt-2 border-t border-vedic-beige flex items-center justify-between gap-2">
+                        <div className="flex items-baseline gap-1.5 min-w-0">
+                          <span className="text-sm md:text-base font-extrabold text-vedic-maroon truncate">
+                            ₹{product.price.toLocaleString('en-IN')}
+                          </span>
+                          {product.compareAtPrice > product.price && (
+                            <span className="text-[11px] text-vedic-muted line-through">
+                              ₹{product.compareAtPrice.toLocaleString('en-IN')}
+                            </span>
+                          )}
+                        </div>
+
+                        <button
+                          onClick={() => handleAddVarietyProductToCart(product)}
+                          disabled={!product.inStock}
+                          className="flex-shrink-0 bg-vedic-gold/10 hover:bg-vedic-maroon text-vedic-maroon hover:text-vedic-ivory p-2 rounded-xl transition-all duration-200 border border-vedic-gold/30 hover:border-transparent flex items-center gap-1 text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-vedic-gold/10 disabled:hover:text-vedic-maroon"
+                          title={product.inStock ? 'Add to Cart' : 'Out of Stock'}
+                        >
+                          <ShoppingBag className="w-4 h-4" />
+                          <span className="hidden sm:inline">{product.inStock ? 'Add' : 'Sold Out'}</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ================================================================
+          COMMENTED OUT PER REQUEST: everything below "Shop By Variety"
+          (the image-gallery/weight/price/buy-box "PDP" section, the About
+          tabs, Vedic guidance, and Related Gemstones) is temporarily
+          disabled so the Footer renders directly after the variety grid.
+          Clicking a variety card here will get its own dedicated product
+          detail page + design later — this block is left in place to
+          reuse/reference when that's built. Uncomment to restore as-is.
+
+      {/ * ------------------------------------------------------------------ * /}
+      {/ * Existing shopping section (image gallery, weight/price, cart) —    * /}
+      {/ * ------------------------------------------------------------------ * /}
+      <div id="shop-buy-section" className="bg-amber-950 text-amber-50 min-h-screen pb-20">
+      {/ * Container * /}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
 
-        {/* Product PDP Top Section */}
+        {/ * Product PDP Top Section * /}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 mb-16">
-          {/* Left Column: Image Gallery (5 cols) */}
+          {/ * Left Column: Image Gallery (5 cols) * /}
           <div className="lg:col-span-6 space-y-4">
             <div className="relative aspect-square w-full bg-gradient-to-b from-amber-900/40 to-amber-950 border border-amber-500/30 rounded-3xl overflow-hidden p-8 flex items-center justify-center group shadow-2xl">
-              {/* Badges */}
+              {/ * Badges * /}
               <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
                 {gem.isExclusive && (
                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500 text-amber-950 text-xs font-bold uppercase tracking-wider shadow-lg">
@@ -466,7 +744,7 @@ export const SingleGemstonePage: React.FC = () => {
                 )}
               </div>
 
-              {/* Main Display Image — follows the active variety selected above */}
+              {/ * Main Display Image — follows the active variety selected above * /}
               <img
                 src={selectedImage}
                 alt={activeVariant.name}
@@ -477,7 +755,7 @@ export const SingleGemstonePage: React.FC = () => {
               />
             </div>
 
-            {/* Thumbnail Carousel */}
+            {/ * Thumbnail Carousel * /}
             {gem.gallery.length > 1 && (
               <div className="flex items-center gap-3 overflow-x-auto pb-2 no-scrollbar">
                 {gem.gallery.map((imgUrl, idx) => (
@@ -494,7 +772,7 @@ export const SingleGemstonePage: React.FC = () => {
               </div>
             )}
 
-            {/* Verification Guarantee */}
+            {/ * Verification Guarantee * /}
             <div className="grid grid-cols-3 gap-3 pt-4 border-t border-amber-800/40 text-center">
               <div className="p-3 rounded-xl bg-amber-900/30 border border-amber-800/30">
                 <ShieldCheck className="w-5 h-5 text-amber-400 mx-auto mb-1" />
@@ -511,7 +789,7 @@ export const SingleGemstonePage: React.FC = () => {
             </div>
           </div>
 
-          {/* Right Column: Gem Info & Options (6 cols) */}
+          {/ * Right Column: Gem Info & Options (6 cols) * /}
           <div className="lg:col-span-6 space-y-6" id="pricing">
             <div>
               <div className="flex items-center justify-between text-xs text-amber-400/80 mb-2">
@@ -539,7 +817,7 @@ export const SingleGemstonePage: React.FC = () => {
                 {gem.description}
               </p>
 
-              {/* Specs Tag Grid */}
+              {/ * Specs Tag Grid * /}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-6">
                 <div className="bg-amber-900/40 p-2.5 rounded-lg border border-amber-800/40">
                   <span className="text-[10px] text-amber-400/70 block uppercase">Origin</span>
@@ -560,7 +838,7 @@ export const SingleGemstonePage: React.FC = () => {
               </div>
             </div>
 
-            {/* Dynamic Carat Weight Selector */}
+            {/ * Dynamic Carat Weight Selector * /}
             <div className="p-4 bg-amber-900/30 border border-amber-800/40 rounded-2xl space-y-3">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-bold text-amber-300 uppercase tracking-wider">
@@ -589,7 +867,7 @@ export const SingleGemstonePage: React.FC = () => {
               </div>
             </div>
 
-            {/* Dynamic Price Display */}
+            {/ * Dynamic Price Display * /}
             <div className="flex items-baseline gap-3 pt-2">
               <span className="text-3xl sm:text-4xl font-bold text-amber-300">
                 ₹{calculatedPrice.toLocaleString('en-IN')}
@@ -602,7 +880,7 @@ export const SingleGemstonePage: React.FC = () => {
               </span>
             </div>
 
-            {/* CTA Buttons */}
+            {/ * CTA Buttons * /}
             <div className="space-y-3 pt-2">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <button
@@ -621,7 +899,7 @@ export const SingleGemstonePage: React.FC = () => {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {/* Ask Expert */}
+                {/ * Ask Expert * /}
                 <a
                   href={`https://wa.me/919876543210?text=${whatsappMessage}`}
                   target="_blank"
@@ -632,7 +910,7 @@ export const SingleGemstonePage: React.FC = () => {
                   <span>Ask an Expert on WhatsApp</span>
                 </a>
 
-                {/* Wishlist Button */}
+                {/ * Wishlist Button * /}
                 <button
                   onClick={() => toggleWishlist(contextProductPayload as any)}
                   className={`py-3 px-4 rounded-xl border font-semibold text-xs transition-colors flex items-center justify-center gap-2 ${
@@ -649,7 +927,7 @@ export const SingleGemstonePage: React.FC = () => {
           </div>
         </div>
 
-        {/* 3. Vedic Astrology & Cultural Guidance Section */}
+        {/ * 3. Vedic Astrology & Cultural Guidance Section * /}
         <section id="vedic-guidance" className="mb-16 bg-gradient-to-b from-amber-900/40 via-amber-950 to-amber-900/40 border border-amber-500/30 rounded-3xl p-6 sm:p-10 shadow-2xl relative overflow-hidden">
           <div className="max-w-4xl mx-auto space-y-8">
             <div className="text-center space-y-2">
@@ -665,7 +943,7 @@ export const SingleGemstonePage: React.FC = () => {
               </p>
             </div>
 
-            {/* Vedic Specs Grid */}
+            {/ * Vedic Specs Grid * /}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {gem.associatedPlanet && (
                 <div className="p-4 bg-amber-950/60 border border-amber-800/40 rounded-xl flex items-start gap-3">
@@ -716,7 +994,7 @@ export const SingleGemstonePage: React.FC = () => {
               )}
             </div>
 
-            {/* Benefits Bullet Points */}
+            {/ * Benefits Bullet Points * /}
             {gem.benefits && gem.benefits.length > 0 && (
               <div className="bg-amber-950/50 p-5 rounded-2xl border border-amber-800/40 space-y-3">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-amber-400">
@@ -733,7 +1011,7 @@ export const SingleGemstonePage: React.FC = () => {
               </div>
             )}
 
-            {/* Mantra if available */}
+            {/ * Mantra if available * /}
             {gem.traditionalMantra && (
               <div className="text-center bg-amber-900/40 p-4 rounded-xl border border-amber-700/40">
                 <span className="text-[10px] text-amber-400 uppercase font-bold tracking-wider block mb-1">Traditional Activation Mantra</span>
@@ -741,7 +1019,7 @@ export const SingleGemstonePage: React.FC = () => {
               </div>
             )}
 
-            {/* IMPORTANT Cultural Disclaimer Box */}
+            {/ * IMPORTANT Cultural Disclaimer Box * /}
             <div className="p-4 bg-amber-950 border border-amber-800/60 rounded-xl text-center">
               <p className="text-[11px] text-amber-400/80 leading-relaxed font-light">
                 <span className="font-semibold text-amber-300">Cultural & Traditional Disclaimer:</span> Gemstone and astrological recommendations are provided for traditional and cultural guidance and should not be considered scientific, medical, financial, or guaranteed outcomes.
@@ -750,7 +1028,7 @@ export const SingleGemstonePage: React.FC = () => {
           </div>
         </section>
 
-        {/* 4. Related Gemstones ("You May Also Like") */}
+        {/ * 4. Related Gemstones ("You May Also Like") * /}
         {relatedGems.length > 0 && (
           <section>
             <div className="flex items-center justify-between mb-8">
@@ -782,6 +1060,7 @@ export const SingleGemstonePage: React.FC = () => {
         )}
       </div>
       </div>
+      ================================================================ */}
     </>
   );
 };
