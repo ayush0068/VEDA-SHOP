@@ -22,7 +22,13 @@ import {
 import { Breadcrumb } from '../components/Breadcrumb';
 import { GemstoneCard } from '../components/GemstoneCard';
 import { GEMSTONE_CATALOG_DATA, WeightOption, GemstoneItem } from '../data/gemstoneCatalogData';
-import { getVarietyProducts, VarietyProductTile, getGemstoneThemeColor, buildTileGradient } from '../services/gemstoneCatalogService';
+import {
+  getVarietyProducts,
+  VarietyProductTile,
+  getGemstoneThemeColor,
+  buildTileGradient,
+  getGemstoneVarieties
+} from '../services/gemstoneCatalogService';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 
@@ -53,57 +59,11 @@ const PAGE_TABS: { label: string; anchor: string }[] = [
  * the same `{ name }` shape (or extend it with a real per-variety image/slug) so the scroller
  * component below needs no changes.
  */
-const GEMSTONE_VARIETY_DEMO_DATA: Record<string, string[]> = {
-  Emerald: [
-    'Zambian Emerald',
-    'Brazilian Emerald',
-    'Colombian Emerald',
-    'Ethiopian Emerald',
-    'Vivid Green Emerald',
-    'Russian Emerald',
-    'Panjshir Emerald',
-    'Indian Emerald',
-    'Swat Emerald'
-  ],
-  Ruby: [
-    'Burmese Ruby',
-    'Mozambique Ruby',
-    'Thai Ruby',
-    'African Ruby',
-    'Ceylon Ruby',
-    'Vietnamese Ruby',
-    'Madagascar Ruby'
-  ],
-  Sapphire: [
-    'Ceylon Blue Sapphire',
-    'Kashmir Blue Sapphire',
-    'Burmese Blue Sapphire',
-    'Madagascar Blue Sapphire',
-    'Australian Blue Sapphire',
-    'Thai Blue Sapphire'
-  ],
-  Pearl: ['South Sea Pearl', 'Basra Pearl', 'Hyderabadi Pearl', 'Venezuelan Pearl', 'Freshwater Pearl'],
-  Coral: ['Italian Red Coral', 'Japani Red Coral', 'Taiwan Red Coral'],
-  Hessonite: ['Ceylon Hessonite', 'African Hessonite'],
-  'Cat\'s Eye': ["Ceylon Cat's Eye", "Indian Cat's Eye", "Chrysoberyl Cat's Eye"]
-};
-
-/** Picks a variety list for this gemstone — matches by gemstoneType keyword, else falls back to a generic set. */
-function getGemstoneVarieties(gem: GemstoneItem): string[] {
-  const typeKey = Object.keys(GEMSTONE_VARIETY_DEMO_DATA).find((key) =>
-    gem.gemstoneType.toLowerCase().includes(key.toLowerCase())
-  );
-  if (typeKey) return GEMSTONE_VARIETY_DEMO_DATA[typeKey];
-
-  // Generic fallback so every gemstone always has something to show here.
-  return [
-    `Premium ${gem.name}`,
-    `Natural ${gem.name}`,
-    `Certified ${gem.name}`,
-    `${gem.origin} ${gem.name}`,
-    `Rare ${gem.name}`
-  ];
-}
+/**
+ * NOTE: the variety-name demo data + getGemstoneVarieties() used to live here, but now live in
+ * services/gemstoneCatalogService.ts (exported) so the single-listing detail page can resolve
+ * the same variant names from a URL handle. See that file for the Shopify swap-in note.
+ */
 
 /**
  * The "Shop By Variety" grid's product data (price, rating, images...) is fetched through
@@ -134,7 +94,6 @@ const HERO_IMAGE_OVERRIDES: Record<string, string> = {
    'amethyst': '/images/gemstones-page/all/hero/Amethyst.png',
    'ametrine': '/images/gemstones-page/all/hero/Ametrine.png',
    'aquamarine': '/images/gemstones-page/all/hero/Aquamarine.png',
-   
 };
 
 /** A single option in the swappable "Types & Varieties" picker — the base gem itself, or one of its varieties. */
@@ -654,6 +613,7 @@ export const SingleGemstonePage: React.FC = () => {
               {varietyProducts.map((product) => {
                 const isVarietyLiked = isInWishlist(product.id);
                 const [baseName, tier] = product.title.split(' — ');
+                const openListingPage = () => navigate(`/gemstones/${gem.slug}/listing/${product.id}`);
 
                 return (
                   <React.Fragment key={product.id}>
@@ -664,7 +624,12 @@ export const SingleGemstonePage: React.FC = () => {
                         hidden, so desktop is completely unaffected by the toggle.
                        -------------------------------------------------------------- */}
                     {mobileViewMode === 'list' && (
-                      <div className="flex sm:hidden bg-white rounded-2xl border border-vedic-gold/15 overflow-hidden shadow-card active:scale-[0.99] transition-transform duration-150">
+                      <div
+                        onClick={openListingPage}
+                        role="button"
+                        tabIndex={0}
+                        className="flex sm:hidden bg-white rounded-2xl border border-vedic-gold/15 overflow-hidden shadow-card active:scale-[0.99] transition-transform duration-150 cursor-pointer"
+                      >
                         {/* Thumbnail */}
                         <div
                           className="relative w-28 flex-shrink-0 flex items-center justify-center overflow-hidden"
@@ -710,7 +675,10 @@ export const SingleGemstonePage: React.FC = () => {
                                 </h3>
                               </div>
                               <button
-                                onClick={() => handleToggleVarietyProductWishlist(product)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleToggleVarietyProductWishlist(product);
+                                }}
                                 aria-label="Add to Wishlist"
                                 className={`flex-shrink-0 p-1.5 rounded-full transition-all ${
                                   isVarietyLiked
@@ -752,7 +720,10 @@ export const SingleGemstonePage: React.FC = () => {
                             </div>
 
                             <button
-                              onClick={() => handleAddVarietyProductToCart(product)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleAddVarietyProductToCart(product);
+                              }}
                               disabled={!product.inStock}
                               className="flex-shrink-0 bg-vedic-gold/10 hover:bg-vedic-maroon text-vedic-maroon hover:text-vedic-ivory p-2 rounded-xl transition-all duration-200 border border-vedic-gold/30 hover:border-transparent flex items-center gap-1 text-[11px] font-bold disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-vedic-gold/10 disabled:hover:text-vedic-maroon"
                               title={product.inStock ? 'Add to Cart' : 'Out of Stock'}
@@ -773,9 +744,12 @@ export const SingleGemstonePage: React.FC = () => {
                         row is now stacked so the full price is never truncated.
                        -------------------------------------------------------------- */}
                     <div
+                      onClick={openListingPage}
+                      role="button"
+                      tabIndex={0}
                       className={`${
                         mobileViewMode === 'list' ? 'hidden sm:flex' : 'flex'
-                      } group bg-white rounded-2xl border border-vedic-gold/15 overflow-hidden shadow-card hover:shadow-card-hover hover:-translate-y-1 hover:border-vedic-gold/40 transition-all duration-300 flex-col`}
+                      } group bg-white rounded-2xl border border-vedic-gold/15 overflow-hidden shadow-card hover:shadow-card-hover hover:-translate-y-1 hover:border-vedic-gold/40 transition-all duration-300 flex-col cursor-pointer`}
                     >
                       {/* Image area — soft gradient auto-matched to this gemstone's own color */}
                       <div
@@ -789,7 +763,10 @@ export const SingleGemstonePage: React.FC = () => {
                         )}
 
                         <button
-                          onClick={() => handleToggleVarietyProductWishlist(product)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleToggleVarietyProductWishlist(product);
+                          }}
                           aria-label="Add to Wishlist"
                           className={`absolute top-2.5 right-2.5 z-10 p-2 rounded-full backdrop-blur-md transition-all ${
                             isVarietyLiked
@@ -864,7 +841,10 @@ export const SingleGemstonePage: React.FC = () => {
                           </div>
 
                           <button
-                            onClick={() => handleAddVarietyProductToCart(product)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleAddVarietyProductToCart(product);
+                            }}
                             disabled={!product.inStock}
                             className="w-full bg-vedic-gold/10 hover:bg-vedic-maroon text-vedic-maroon hover:text-vedic-ivory py-2 px-3 rounded-xl transition-all duration-200 border border-vedic-gold/30 hover:border-transparent flex items-center justify-center gap-1.5 text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-vedic-gold/10 disabled:hover:text-vedic-maroon"
                             title={product.inStock ? 'Add to Cart' : 'Out of Stock'}

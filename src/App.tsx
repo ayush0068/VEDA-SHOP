@@ -38,6 +38,7 @@ import { NotFoundPage } from './pages/NotFoundPage';
 import { GemstonesPage } from './pages/GemstonesPage';
 import { AllGemstonesPage } from './pages/AllGemstonesPage';
 import { SingleGemstonePage } from './pages/SingleGemstonePage';
+import { GemstoneListingDetailPage } from './pages/GemstoneListingDetailPage';
 import { PlanetGemstonesPage } from './pages/PlanetGemstonesPage';
 import { CertificationHubPage } from './pages/CertificationHubPage';
 import { CustomJewelleryPage } from './pages/CustomJewelleryPage';
@@ -75,6 +76,7 @@ export const App: React.FC = () => {
                     <Route path="/gemstones/exclusive" element={<GemstonesPage />} />
                     <Route path="/gemstones/other" element={<GemstonesPage />} />
                     <Route path="/gemstones/view-all" element={<AllGemstonesPage />} />
+                    <Route path="/gemstones/:slug/listing/:productId" element={<GemstoneListingDetailPage />} />
                     <Route path="/gemstones/:slug" element={<SingleGemstonePage />} />
                     <Route path="/planets/:planetSlug" element={<PlanetGemstonesPage />} />
                     <Route path="/certification" element={<CertificationHubPage />} />

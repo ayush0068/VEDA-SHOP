@@ -214,6 +214,95 @@ function hashHandle(text: string): number {
 }
 
 /**
+ * ---------------------------------------------------------------------
+ * "TYPES & VARIETIES" DEMO DATA — shared by SingleGemstonePage's variant
+ * picker AND the single-listing detail page (so a listing's page can
+ * resolve its own variant name/image from a collectionHandle in the URL
+ * the exact same way the picker does). Keyed by `gemstoneType`.
+ *
+ * Swap-in point for Shopify: once real variant records exist (their own
+ * image, price, description...), replace this lookup + getGemstoneVarieties()
+ * below with a real fetch and keep returning the same `string[]` of names
+ * (or extend callers to use real per-variant fields) — nothing else in
+ * either page needs to change.
+ * ---------------------------------------------------------------------
+ */
+const GEMSTONE_VARIETY_DEMO_DATA: Record<string, string[]> = {
+  Emerald: [
+    'Zambian Emerald',
+    'Brazilian Emerald',
+    'Colombian Emerald',
+    'Ethiopian Emerald',
+    'Vivid Green Emerald',
+    'Russian Emerald',
+    'Panjshir Emerald',
+    'Indian Emerald',
+    'Swat Emerald'
+  ],
+  Ruby: [
+    'Burmese Ruby',
+    'Mozambique Ruby',
+    'Thai Ruby',
+    'African Ruby',
+    'Ceylon Ruby',
+    'Vietnamese Ruby',
+    'Madagascar Ruby'
+  ],
+  Sapphire: [
+    'Ceylon Blue Sapphire',
+    'Kashmir Blue Sapphire',
+    'Burmese Blue Sapphire',
+    'Madagascar Blue Sapphire',
+    'Australian Blue Sapphire',
+    'Thai Blue Sapphire'
+  ],
+  Pearl: ['South Sea Pearl', 'Basra Pearl', 'Hyderabadi Pearl', 'Venezuelan Pearl', 'Freshwater Pearl'],
+  Coral: ['Italian Red Coral', 'Japani Red Coral', 'Taiwan Red Coral'],
+  Hessonite: ['Ceylon Hessonite', 'African Hessonite'],
+  'Cat\'s Eye': ["Ceylon Cat's Eye", "Indian Cat's Eye", "Chrysoberyl Cat's Eye"]
+};
+
+/** Picks a variety list for a gemstone — matches by gemstoneType keyword, else falls back to a generic set. */
+export function getGemstoneVarieties(gem: GemstoneItem): string[] {
+  const typeKey = Object.keys(GEMSTONE_VARIETY_DEMO_DATA).find((key) =>
+    gem.gemstoneType.toLowerCase().includes(key.toLowerCase())
+  );
+  if (typeKey) return GEMSTONE_VARIETY_DEMO_DATA[typeKey];
+
+  // Generic fallback so every gemstone always has something to show here.
+  return [
+    `Premium ${gem.name}`,
+    `Natural ${gem.name}`,
+    `Certified ${gem.name}`,
+    `${gem.origin} ${gem.name}`,
+    `Rare ${gem.name}`
+  ];
+}
+
+function slugify(text: string): string {
+  return text.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+}
+
+/**
+ * Resolves a `collectionHandle` (as used in the "Shop By Variety" grid and
+ * in a listing's product id) back to the variant's display name + image for
+ * a given gem — the base gem itself if the handle is just the gem's own
+ * slug, else whichever named variety slugifies to that handle. Used by the
+ * single-listing detail page so a direct/shared link can rebuild the right
+ * breadcrumb/title without needing anything passed through router state.
+ */
+export function resolveVarietyByHandle(
+  gem: GemstoneItem,
+  collectionHandle: string
+): { name: string; image: string } {
+  if (collectionHandle === gem.slug) {
+    return { name: gem.name, image: gem.image };
+  }
+  const match = getGemstoneVarieties(gem).find((name) => slugify(name) === collectionHandle);
+  return { name: match || gem.name, image: gem.image };
+}
+
+/**
  * Quality-tier labels demo listings are cycled through so a variety with several listings
  * (e.g. "Zambian Emerald") doesn't just repeat the same card 12 times. Purely cosmetic — once
  * Shopify is connected, each listing's real title/tier comes from its own product record.
@@ -251,6 +340,42 @@ const DEMO_QUALITY_TIERS = [
  * state for that case, no extra handling needed on either side.
  * ---------------------------------------------------------------------
  */
+/**
+ * Builds exactly one demo listing tile for `collectionHandle` at `index` — the same
+ * deterministic formula fetchVarietyProductsFromSource() loops over, pulled out so a single
+ * listing (e.g. reopened later on its own detail page via getVarietyProductById()) always
+ * regenerates identical to how it first appeared in the grid.
+ */
+function buildVarietyProduct(
+  collectionHandle: string,
+  index: number,
+  fallbackTitle: string,
+  fallbackImage: string,
+  basePrice: number
+): VarietyProductTile {
+  const ih = hashHandle(`${collectionHandle}-${index}`);
+  const priceMultiplier = 0.75 + (ih % 60) / 100; // ~0.75x - 1.34x of the base gem's starting price
+  const price = Math.round((basePrice * priceMultiplier) / 10) * 10;
+  const discountPercent = 8 + (ih % 12); // 8% - 19%
+  const compareAtPrice = Math.round(price / (1 - discountPercent / 100) / 10) * 10;
+  const rating = Math.min(5, Math.round((3.7 + (ih % 14) / 10) * 10) / 10); // 3.7 - 5.0
+  const reviewCount = 40 + (ih % 520);
+  const tier = DEMO_QUALITY_TIERS[index % DEMO_QUALITY_TIERS.length];
+
+  return {
+    id: `${collectionHandle}-demo-${index}`,
+    handle: collectionHandle,
+    title: `${fallbackTitle} — ${tier}`,
+    image: fallbackImage,
+    price,
+    compareAtPrice,
+    discountPercent,
+    rating,
+    reviewCount,
+    inStock: ih % 17 !== 0 // the odd listing shows as sold out, same as a real catalog would
+  };
+}
+
 async function fetchVarietyProductsFromSource(
   collectionHandle: string,
   fallbackTitle: string,
@@ -265,29 +390,9 @@ async function fetchVarietyProductsFromSource(
   const h = hashHandle(collectionHandle);
   const listingCount = 10 + (h % 6); // 10 - 15 demo listings
 
-  return Array.from({ length: listingCount }, (_, index) => {
-    const ih = hashHandle(`${collectionHandle}-${index}`);
-    const priceMultiplier = 0.75 + (ih % 60) / 100; // ~0.75x - 1.34x of the base gem's starting price
-    const price = Math.round((basePrice * priceMultiplier) / 10) * 10;
-    const discountPercent = 8 + (ih % 12); // 8% - 19%
-    const compareAtPrice = Math.round(price / (1 - discountPercent / 100) / 10) * 10;
-    const rating = Math.min(5, Math.round((3.7 + (ih % 14) / 10) * 10) / 10); // 3.7 - 5.0
-    const reviewCount = 40 + (ih % 520);
-    const tier = DEMO_QUALITY_TIERS[index % DEMO_QUALITY_TIERS.length];
-
-    return {
-      id: `${collectionHandle}-demo-${index}`,
-      handle: collectionHandle,
-      title: `${fallbackTitle} — ${tier}`,
-      image: fallbackImage,
-      price,
-      compareAtPrice,
-      discountPercent,
-      rating,
-      reviewCount,
-      inStock: ih % 17 !== 0 // the odd listing shows as sold out, same as a real catalog would
-    };
-  });
+  return Array.from({ length: listingCount }, (_, index) =>
+    buildVarietyProduct(collectionHandle, index, fallbackTitle, fallbackImage, basePrice)
+  );
 }
 
 /** Public entry point used by SingleGemstonePage's "Shop By Variety" grid. */
@@ -304,6 +409,29 @@ export async function getVarietyProducts(
     // never a visible error.
     return [];
   }
+}
+
+/**
+ * Public entry point used by the single-listing detail page (opened when someone taps an
+ * individual stone card in the "Shop By Variety" grid to buy it). `productId` is exactly the
+ * `id` a VarietyProductTile already carries (`${collectionHandle}-demo-${index}`), so this
+ * just decodes it back into a collectionHandle + index and regenerates that one tile.
+ *
+ * Once Shopify is connected, replace the body with a real single-product lookup, e.g.:
+ *   const product = await shopifyClient.product.fetch(productId);
+ *   return mapShopifyProductToVarietyTile(product);
+ * — same VarietyProductTile shape in, so the detail page needs no changes.
+ */
+export async function getVarietyProductById(
+  productId: string,
+  fallbackTitle: string,
+  fallbackImage: string,
+  basePrice: number
+): Promise<VarietyProductTile | null> {
+  const match = productId.match(/^(.*)-demo-(\d+)$/);
+  if (!match) return null;
+  const [, collectionHandle, indexStr] = match;
+  return buildVarietyProduct(collectionHandle, Number(indexStr), fallbackTitle, fallbackImage, basePrice);
 }
 
 /** Distinct, sorted filter option lists — derived live from whatever data source is active. */
