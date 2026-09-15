@@ -1,6 +1,15 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Hash, Compass, Sparkles, HelpCircle, ChevronDown, ArrowRight, MessageCircle } from 'lucide-react';
+import {
+  Hash,
+  Compass,
+  Sparkles,
+  HelpCircle,
+  ChevronDown,
+  ArrowRight,
+  MessageCircle,
+  type LucideIcon
+} from 'lucide-react';
 
 export interface RudrakshaQuickFinderProps {
   /** 1–14 by default. Swap for a live list (e.g. only Mukhis currently in stock) once Shopify is connected. */
@@ -74,12 +83,12 @@ export const RudrakshaQuickFinder: React.FC<RudrakshaQuickFinderProps> = ({
     const message = encodeURIComponent(
       "Namaste! I'm not sure which Rudraksha is right for me. Could you please guide me based on my birth details and purpose?"
     );
-    window.open(`https://wa.me/919876543210?text=${message}`, '_blank');
+    window.open(`https://wa.me/919621340116?text=${message}`, '_blank');
   };
 
   const cards: {
     key: FinderKey | 'guidance';
-    icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+    icon: LucideIcon;
     title: string;
     description: string;
   }[] = [

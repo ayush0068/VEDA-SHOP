@@ -1,9 +1,16 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Search, ShieldCheck, Gem, Sparkles, Truck } from 'lucide-react';
-
+import {
+  ArrowRight,
+  Search,
+  ShieldCheck,
+  Gem,
+  Sparkles,
+  Truck,
+  type LucideIcon
+} from 'lucide-react';
 export interface RudrakshaHeroStat {
-  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+  icon: LucideIcon;
   value: string;
   label: string;
 }
