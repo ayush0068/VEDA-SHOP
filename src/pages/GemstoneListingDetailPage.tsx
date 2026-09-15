@@ -16,7 +16,9 @@ import {
   MessageCircle,
   FileText,
   UploadCloud,
-  CheckCircle2
+  CheckCircle2,
+  X,
+  Eye
 } from 'lucide-react';
 import { Breadcrumb } from '../components/Breadcrumb';
 import { GemstoneCard } from '../components/GemstoneCard';
@@ -84,28 +86,20 @@ const DESIGN_OPTIONS: { key: string; label: string; priceExtra: number; variant?
   { key: 'vintage-dazzle', label: 'Vintage Halo Dazzle', priceExtra: 3500, variant: 'double-halo' }
 ];
 
+/** Convenience alias for a single entry from DESIGN_OPTIONS. */
+type DesignOption = (typeof DESIGN_OPTIONS)[number];
+
 /**
- * Small on-brand jewellery-setting preview, drawn as SVG rather than a stock photo — the
- * center stone is tinted with this gemstone's own theme color, so every design tile always
- * looks correctly "set" with whatever gem is actually being sold, for any gemstone on the site.
+ * Placeholder "photo" for a design's hover/tap preview, tinted with this gemstone's own color
+ * so it always looks plausibly "real" even with demo data. Once Shopify is connected, replace
+ * this with that design variant's real product image (Product.featuredImage.url) — the hover
+ * preview, mobile popup, and grid thumbnails below all just render whatever URL comes back, so
+ * nothing else needs to change.
  */
-const DesignPreviewIcon: React.FC<{ variant: DesignVariant; color: string }> = ({ variant, color }) => (
-  <svg viewBox="0 0 48 48" className="w-8 h-8 sm:w-9 sm:h-9">
-    <path
-      d="M24 43c-6.5 0-11.5-5.2-11.5-12.3 0-8.3 6.3-15.5 11.5-19.6 5.2 4.1 11.5 11.3 11.5 19.6C35.5 37.8 30.5 43 24 43z"
-      fill="none"
-      stroke="#B08D57"
-      strokeWidth="2"
-    />
-    {variant === 'double-halo' && (
-      <circle cx="24" cy="15.5" r="10" fill="none" stroke="#D9C9A8" strokeWidth="1.4" strokeDasharray="1.8 2" />
-    )}
-    {(variant === 'halo' || variant === 'double-halo') && (
-      <circle cx="24" cy="15.5" r="7.3" fill="none" stroke="#E9A331" strokeWidth="1.4" strokeDasharray="1.6 1.8" />
-    )}
-    <circle cx="24" cy="15.5" r="5.2" fill={color} stroke="#ffffff" strokeWidth="1" />
-  </svg>
-);
+function getDesignPreviewImage(label: string, colorHex: string): string {
+  const bg = colorHex.replace('#', '');
+  return `https://placehold.co/600x600/${bg}/FFFFFF?text=${encodeURIComponent(label)}`;
+}
 
 /** Working days from now, formatted for the "Expected Dispatch Date" line. */
 function getExpectedDispatchDate(): string {
@@ -145,6 +139,19 @@ export const GemstoneListingDetailPage: React.FC = () => {
   const [weightTouched, setWeightTouched] = useState(false);
   const [metalTouched, setMetalTouched] = useState(false);
   const [designTouched, setDesignTouched] = useState(false);
+
+  // Design hover/tap preview — desktop swaps the main image on hover (no commitment until
+  // clicked); touch devices don't get hover at all, so they get a proper preview popup instead.
+  const [hoveredDesign, setHoveredDesign] = useState<DesignOption | null>(null);
+  const [previewDesign, setPreviewDesign] = useState<DesignOption | null>(null);
+  const [supportsHover, setSupportsHover] = useState(true);
+  useEffect(() => {
+    const mq = window.matchMedia('(hover: hover) and (pointer: fine)');
+    setSupportsHover(mq.matches);
+    const handleChange = (e: MediaQueryListEvent) => setSupportsHover(e.matches);
+    mq.addEventListener('change', handleChange);
+    return () => mq.removeEventListener('change', handleChange);
+  }, []);
 
   useEffect(() => {
     if (!gem || !productId) {
@@ -322,6 +329,19 @@ export const GemstoneListingDetailPage: React.FC = () => {
     setDesignTouched(true);
   };
 
+  // Desktop (real hover available): clicking a design tile selects it immediately, same as
+  // before — hovering it separately shows the live preview on the left (see the main image
+  // block below). Touch devices: tapping opens a popup with a big preview + a confirm button,
+  // since there's no hover to preview with first. The "Upload Your Own Design" tile always
+  // goes straight to its file picker either way — there's nothing to preview there.
+  const handleDesignTileClick = (design: (typeof DESIGN_OPTIONS)[number]) => {
+    if (supportsHover || design.isCustom) {
+      handleSelectDesign(design);
+    } else {
+      setPreviewDesign(design);
+    }
+  };
+
   const activeFitting = FITTING_OPTIONS.find((f) => f.key === fitting) || FITTING_OPTIONS[0];
 
   const relatedGems = GEMSTONE_CATALOG_DATA.filter(
@@ -340,6 +360,52 @@ export const GemstoneListingDetailPage: React.FC = () => {
         treatment={gem.treatment || 'No indications of heating observed / Untreated'}
       />
 
+      {/* Mobile/touch design preview popup — desktop previews inline via hover instead (see the
+          main image block above), so this only ever opens on devices without real hover. */}
+      {previewDesign && (
+        <div
+          className="fixed inset-0 z-50 bg-vedic-dark/70 backdrop-blur-sm flex items-end sm:items-center justify-center"
+          onClick={() => setPreviewDesign(null)}
+        >
+          <div
+            className="bg-white w-full sm:max-w-sm sm:rounded-3xl rounded-t-3xl overflow-hidden shadow-2xl animate-in slide-in-from-bottom sm:zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="relative aspect-square flex items-center justify-center p-8" style={{ background: varietyCardGradient }}>
+              <button
+                onClick={() => setPreviewDesign(null)}
+                aria-label="Close preview"
+                className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/90 flex items-center justify-center text-vedic-dark shadow-md"
+              >
+                <X className="w-4 h-4" />
+              </button>
+              <img
+                src={getDesignPreviewImage(previewDesign.label, gemSolidColor)}
+                alt={previewDesign.label}
+                className="w-full h-full object-contain mix-blend-multiply"
+              />
+            </div>
+            <div className="p-5 space-y-3">
+              <div>
+                <h3 className="font-serif font-bold text-lg text-vedic-dark">{previewDesign.label}</h3>
+                <p className="text-sm font-bold text-vedic-goldDark mt-0.5">
+                  +₹{previewDesign.priceExtra.toLocaleString('en-IN')}
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  handleSelectDesign(previewDesign);
+                  setPreviewDesign(null);
+                }}
+                className="w-full py-3 rounded-full font-serif font-bold text-sm bg-vedic-maroon text-vedic-ivory shadow-lg hover:bg-vedic-maroonDark transition-colors"
+              >
+                Select This Design
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <Breadcrumb
           items={[
@@ -349,9 +415,10 @@ export const GemstoneListingDetailPage: React.FC = () => {
           ]}
         />
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 pt-2 pb-12">
-          {/* Left: Image Gallery */}
-          <div className="lg:col-span-6 space-y-4">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 pt-2 pb-12 lg:items-start">
+          {/* Left: Image Gallery — sticky on desktop so it stays in view (and the Designs hover
+              preview stays visible) as the long buy-box on the right is scrolled through. */}
+          <div className="lg:col-span-6 space-y-4 lg:sticky lg:top-24 lg:self-start">
             {/*
               `gallery` (built above from product.image + gem.gallery) is DEMO data — every
               thumbnail here should be swapped for this exact product's own `images` array from
@@ -395,10 +462,23 @@ export const GemstoneListingDetailPage: React.FC = () => {
                     Sold Out
                   </span>
                 )}
+
+                {/* While hovering a design tile (desktop only), this swaps to that design's
+                    preview — it's a look, not a commitment; leaving the tile reverts it. */}
+                {hoveredDesign && (
+                  <span className="absolute top-4 right-4 z-10 inline-flex items-center gap-1.5 bg-vedic-dark/85 text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-full">
+                    <Eye className="w-3 h-3" />
+                    Previewing: {hoveredDesign.label}
+                  </span>
+                )}
+
                 <img
-                  src={selectedImage}
-                  alt={baseName}
-                  className={`w-full h-full object-contain mix-blend-multiply ${!product.inStock ? 'grayscale opacity-60' : ''}`}
+                  key={hoveredDesign ? hoveredDesign.key : 'selected'}
+                  src={hoveredDesign ? getDesignPreviewImage(hoveredDesign.label, gemSolidColor) : selectedImage}
+                  alt={hoveredDesign ? hoveredDesign.label : baseName}
+                  className={`w-full h-full object-contain mix-blend-multiply transition-opacity duration-200 ${
+                    !product.inStock ? 'grayscale opacity-60' : ''
+                  }`}
                   onError={(e) => {
                     (e.target as HTMLImageElement).src = `https://placehold.co/600x600/FFFFFF/E9A331?text=${encodeURIComponent(baseName)}`;
                   }}
@@ -645,10 +725,15 @@ export const GemstoneListingDetailPage: React.FC = () => {
 
             {/* Designs — only once a Metal is picked */}
             {fitting !== 'loose' && metal && (
-              <div id="design-select" className="space-y-2 border-t border-dashed border-vedic-gold/30 pt-4">
-                <label className="flex items-center gap-1 text-xs font-bold text-vedic-dark uppercase tracking-wider">
-                  Designs <span className="text-red-500">*</span>
-                </label>
+              <div id="design-select" className="space-y-3 border-t border-dashed border-vedic-gold/30 pt-4">
+                <div className="flex items-center justify-between">
+                  <label className="flex items-center gap-1 text-xs font-bold text-vedic-dark uppercase tracking-wider">
+                    Designs <span className="text-red-500">*</span>
+                  </label>
+                  {supportsHover && (
+                    <span className="text-[10px] text-vedic-muted italic">Hover a design to preview it</span>
+                  )}
+                </div>
                 <input
                   ref={customDesignInputRef}
                   type="file"
@@ -656,33 +741,50 @@ export const GemstoneListingDetailPage: React.FC = () => {
                   className="hidden"
                   onChange={(e) => setCustomDesignFileName(e.target.files?.[0]?.name || null)}
                 />
-                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   {DESIGN_OPTIONS.map((design) => {
                     const isSelected = selectedDesign === design.key;
                     return (
                       <button
                         key={design.key}
                         type="button"
-                        onClick={() => handleSelectDesign(design)}
-                        className={`relative flex flex-col items-center justify-center gap-1 py-3 px-1.5 rounded-xl border text-center transition-all ${
+                        onClick={() => handleDesignTileClick(design)}
+                        onMouseEnter={() => supportsHover && !design.isCustom && setHoveredDesign(design)}
+                        onMouseLeave={() => supportsHover && setHoveredDesign(null)}
+                        className={`relative flex flex-col overflow-hidden rounded-2xl border text-left transition-all ${
                           isSelected
                             ? 'bg-vedic-ivory border-vedic-gold ring-1 ring-vedic-gold shadow-md'
-                            : 'bg-white border-vedic-beige hover:border-vedic-gold/50'
+                            : 'bg-white border-vedic-beige hover:border-vedic-gold/50 hover:shadow-md hover:-translate-y-0.5'
                         }`}
                       >
                         {isSelected && (
-                          <CheckCircle2 className="w-3.5 h-3.5 text-vedic-goldDark absolute top-1.5 right-1.5" />
+                          <span className="absolute top-1.5 right-1.5 z-10 w-5 h-5 rounded-full bg-vedic-gold flex items-center justify-center shadow">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-white" />
+                          </span>
                         )}
-                        {design.isCustom ? (
-                          <UploadCloud className="w-8 h-8 sm:w-9 sm:h-9 text-vedic-muted" />
-                        ) : (
-                          <DesignPreviewIcon variant={design.variant || 'solitaire'} color={gemSolidColor} />
-                        )}
-                        <span className="text-[9.5px] font-bold text-vedic-dark leading-tight mt-0.5">
-                          {design.isCustom && customDesignFileName ? customDesignFileName : design.label}
+
+                        <span
+                          className="aspect-square flex items-center justify-center p-3"
+                          style={{ background: design.isCustom ? '#F7F4EF' : varietyCardGradient }}
+                        >
+                          {design.isCustom ? (
+                            <UploadCloud className="w-8 h-8 sm:w-9 sm:h-9 text-vedic-muted" />
+                          ) : (
+                            <img
+                              src={getDesignPreviewImage(design.label, gemSolidColor)}
+                              alt={design.label}
+                              className="w-full h-full object-contain mix-blend-multiply"
+                            />
+                          )}
                         </span>
-                        <span className="text-[9.5px] font-bold text-vedic-goldDark">
-                          +₹{design.priceExtra.toLocaleString('en-IN')}
+
+                        <span className="px-2 py-2 text-center border-t border-vedic-beige/70">
+                          <span className="block text-[10px] sm:text-[11px] font-bold text-vedic-dark leading-tight truncate">
+                            {design.isCustom && customDesignFileName ? customDesignFileName : design.label}
+                          </span>
+                          <span className="block text-[10px] sm:text-[11px] font-bold text-vedic-goldDark mt-0.5">
+                            +₹{design.priceExtra.toLocaleString('en-IN')}
+                          </span>
                         </span>
                       </button>
                     );

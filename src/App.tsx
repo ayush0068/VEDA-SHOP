@@ -11,6 +11,7 @@ import { CartDrawer } from './components/CartDrawer';
 import { StickyBottomNav } from './components/StickyBottomNav';
 
 import { HomePage } from './pages/HomePage';
+import { RudrakshaPage } from './pages/RudrakshaPage';
 import { ShopPage } from './pages/ShopPage';
 import { CategoryPage } from './pages/CategoryPage';
 import { ProductDetailPage } from './pages/ProductDetailPage';
@@ -98,6 +99,7 @@ export const App: React.FC = () => {
                     <Route path="/purpose/:purposeId" element={<SinglePurposePage />} />
 
                     {/* Learn & Guides */}
+                    <Route path="/rudraksha" element={<RudrakshaPage />} />
                     <Route path="/guides/rudraksha" element={<RudrakshaGuidePage />} />
                     <Route path="/guides/gemstone" element={<GemstoneGuidePage />} />
                     <Route path="/guides/puja" element={<PujaGuidePage />} />

@@ -70,6 +70,13 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen, onClose }) => {
             </button>
             {openSection === 'rudraksha' && (
               <div className="p-3 border-t border-vedic-beige">
+                <Link
+                  to="/rudraksha"
+                  onClick={onClose}
+                  className="block mb-3 text-center py-2 rounded-lg bg-vedic-maroon text-vedic-ivory text-xs font-bold"
+                >
+                  View Rudraksha Page →
+                </Link>
                 <div className="grid grid-cols-2 gap-1.5 text-xs">
                   {Array.from({ length: 14 }).map((_, i) => (
                     <Link
